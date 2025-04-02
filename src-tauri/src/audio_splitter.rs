@@ -40,6 +40,8 @@ pub fn split_audio_file(file_path: &str, split_duration: u64, session_name: &str
     Ok(format!("Audio file split successfully into {} chunks", split_duration))
 }
 
+
+/// Clears the chunks directory by removing all files and subdirectories
 pub fn clear_chunks() -> Result<(), String> {
     // Get the user's download directory
     

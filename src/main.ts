@@ -35,6 +35,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div>
         <button id="file-submit-button" hidden>Transcrire</button>
       </div>
+      <div id="log-message">
+      </div>
     </div>
   </div>
 `
@@ -52,6 +54,19 @@ function validateSessionName(value: string): boolean {
   // Must be 4-16 characters, alphanumeric only, no spaces or special chars
   const regex = /^[a-zA-Z0-9]{4,20}$/;
   return regex.test(value);
+}
+
+// Function logMessage
+function logMessage(message: string) {
+  let logMessageDiv = document.getElementById('log-message') as HTMLDivElement;
+  let logMessageContent = logMessageDiv.innerHTML;
+  // Add the new message to the existing content
+  logMessageContent += `<p>${message}</p>`;
+  // Update the log message div with the new content
+  logMessageDiv.innerHTML = logMessageContent;
+  // Scroll to the bottom of the log message div
+  logMessageDiv.scrollTop = logMessageDiv.scrollHeight;
+  console.log(message);
 }
 
 // Session name input validation
@@ -99,19 +114,16 @@ function handleFile(filePath: string) {
         // Get the validated session name
         const sessionName = sessionNameInput.value;
         
-        invoke('transcribe', { 
+        invoke<string>('split_file', { 
           file_path: filePath,
           session_name: sessionName
         })
         .then((response) => {
-          // Handle the response from the Rust backend
-          console.log('Response from Rust:', response);
-          // Here you can display the transcription result in the UI
-        }
-        )
+          logMessage(response);
+        })
         .catch((error) => {
           // Handle any errors that occur during the invocation
-          console.error('Error invoking Rust function:', error);
+          console.error('Erreur:', error);
         }
         );
         // Hide the submit button after clicking

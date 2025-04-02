@@ -1,5 +1,7 @@
 import './style.css'
 
+import { invoke } from '@tauri-apps/api/core';
+
 // Note : l'event file drop n'est pas détecté par la webview
 // on ajoute donc la prise en charge de onDragDrop
 // https://tauri.app/reference/javascript/api/namespacewebviewwindow/#ondragdropevent
@@ -16,7 +18,12 @@ import { open } from '@tauri-apps/plugin-dialog';
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
     <h1>ALBERT</h1>
-    <div class="card">
+    <div class="input-section">
+      <label for="session-name">Nom de la session:</label>
+      <input type="text" id="session-name" placeholder="ConseilIUT" maxlength="20">
+      <p id="validation-message" class="validation-message"></p>
+    </div>
+    <div class="card" id="card-section" style="display: none;">
       <div id="file-drop-area" class="file-drop-area">
         <p>Glissez / déposez<br> votre fichier audio ici</p>
         <p>ou</p>
@@ -27,14 +34,47 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       </div>
       <div>
         <button id="file-submit-button" hidden>Transcrire</button>
+      </div>
     </div>
   </div>
 `
 
 // Get DOM elements
+const sessionNameInput = document.getElementById('session-name') as HTMLInputElement;
+const validationMessage = document.getElementById('validation-message') as HTMLParagraphElement;
+const cardSection = document.getElementById('card-section') as HTMLDivElement;
 const fileDropArea = document.getElementById('file-drop-area') as HTMLDivElement;
 const fileSelectButton = document.getElementById('file-select-button') as HTMLButtonElement;
 const filePathDisplay = document.getElementById('file-path-display') as HTMLDivElement;
+
+// Validate session name input
+function validateSessionName(value: string): boolean {
+  // Must be 4-16 characters, alphanumeric only, no spaces or special chars
+  const regex = /^[a-zA-Z0-9]{4,20}$/;
+  return regex.test(value);
+}
+
+// Session name input validation
+sessionNameInput.addEventListener('input', () => {
+  const value = sessionNameInput.value;
+  
+  if (validateSessionName(value)) {
+    validationMessage.textContent = '';
+    cardSection.style.display = 'block';
+  } else {
+    cardSection.style.display = 'none';
+    
+    if (value.length < 4) {
+      validationMessage.textContent = 'Le nom doit comporter au moins 4 caractères';
+    } else if (value.length > 16) {
+      validationMessage.textContent = 'Le nom ne doit pas dépasser 16 caractères';
+    } else if (!/^[a-zA-Z0-9]*$/.test(value)) {
+      validationMessage.textContent = 'Uniquement des lettres et des chiffres';
+    } else {
+      validationMessage.textContent = 'Nom de session invalide';
+    }
+  }
+});
 
 // Handle file selection
 function handleFile(filePath: string) {
@@ -48,7 +88,7 @@ function handleFile(filePath: string) {
   let msg = '';
   // Check if the file extension is valid
   if (!validExtensions.includes(fileExtension)) {
-    msg = '<b>Type de fichier non accepté.<p>Sélectionnez svp un fichier audio<br> avec l\'extension .mp3 ou .wav</b>';
+    msg = '<b>Type de fichier non accepté.<p>Sélectionnez svp un fichier audio<br> avec l\'extension .mp3</b>';
   }
   else {
     msg =`<p>Fichier sélectionné :<br><b> ${fileName}</b></p>`;
@@ -56,19 +96,30 @@ function handleFile(filePath: string) {
     submitButton.hidden = false;
     // Add event listener to the submit button
     submitButton.addEventListener('click', async () => {
-      // Here we would send the file path to Rust backend
-      // This will be implemented later
-      console.log('File submitted:', filePath);
+        // Get the validated session name
+        const sessionName = sessionNameInput.value;
+        
+        invoke('transcribe', { 
+          file_path: filePath,
+          session_name: sessionName
+        })
+        .then((response) => {
+          // Handle the response from the Rust backend
+          console.log('Response from Rust:', response);
+          // Here you can display the transcription result in the UI
+        }
+        )
+        .catch((error) => {
+          // Handle any errors that occur during the invocation
+          console.error('Error invoking Rust function:', error);
+        }
+        );
+        // Hide the submit button after clicking
+        submitButton.hidden = true;
     }
     );
   }
   filePathDisplay.innerHTML = msg;
-  
-
-  
-  // Here we would send the file path to Rust backend
-  // This will be implemented later
-
 }
 
 // Drag and drop events HTML5
@@ -105,11 +156,11 @@ fileSelectButton.addEventListener('click', async (_event) => {
   const file = await open({
     multiple: false,
     directory: false,
-    title: 'Selectionnez un fichier wav ou mp3',
+    title: 'Selectionnez un fichier mp3',
     filters: [
       {
         name: 'Audio Files',
-        extensions: ['wav', 'mp3'],
+        extensions: ['mp3'],
       },
     ],
   });

@@ -114,16 +114,22 @@ function handleFile(filePath: string) {
         // Get the validated session name
         const sessionName = sessionNameInput.value;
         
-        invoke<string>('split_file', { 
+        invoke<string[]>('split_file', { 
           file_path: filePath,
           session_name: sessionName
         })
         .then((response) => {
-          logMessage(response);
+          // The Rust response an array of strings
+          let msgResponse = 'Découpage du fichier audio en morceaux de 10 minutes :<br>';
+          for (let i = 0; i < response.length; i++) {
+            msgResponse += `${response[i]}<br>`;
+          }
+          logMessage(msgResponse);
+          send_chunks(response);
         })
         .catch((error) => {
           // Handle any errors that occur during the invocation
-          console.error('Erreur:', error);
+          logMessage('Erreur lors du découpage du fichier audio :<br>' + error);
         }
         );
         // Hide the submit button after clicking
@@ -132,6 +138,25 @@ function handleFile(filePath: string) {
     );
   }
   filePathDisplay.innerHTML = msg;
+}
+
+function send_chunks(chunks: string[]) {
+  logMessage('Envoi des morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau. Merci de patienter.<br>');
+  for (let i = 0; i < chunks.length; i++) {
+
+    // Delay the invocation by 80 seconds for each chunk
+    // Note : on ne peut pas utiliser setTimeout car il ne fonctionne pas dans le contexte de Tauri
+    let delay = i * 80;
+    invoke<string>('send_chunk', { path: chunks[i], delay: delay})
+      .then((response) => {
+        let msg = `fichier envoyé : ${chunks[i]}`;
+        logMessage(msg);
+        //logMessage(response);
+      })
+      .catch((error) => {
+        //logMessage(error);
+      });
+  }
 }
 
 // Drag and drop events HTML5

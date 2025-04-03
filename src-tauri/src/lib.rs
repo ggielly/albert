@@ -2,6 +2,7 @@ mod audio_splitter;
 mod audio_transcriber;
 use audio_splitter::split_audio_file;
 use audio_splitter::clear_chunks;
+use audio_transcriber::transcribe_chunk;
 use std::path::{Path, PathBuf};
 use directories::UserDirs;
 
@@ -22,7 +23,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![split_file])
+        .invoke_handler(tauri::generate_handler![split_file, send_chunk])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -43,10 +44,12 @@ async fn split_file(file_path: String, session_name: String) -> Result<Vec<Strin
     }
 }
 
+// Résoudre problème blocking dans runtime async
 #[tauri::command(rename_all = "snake_case")]
-async fn send_chunk_to_albert() -> Result<String, String> {
-    // Function body is empty in the original
-    Ok("Not implemented yet".to_string())
+async fn send_chunk(path: String, delay: u64) -> Result<String, String> {
+    // Call the transcribe_chunk function from audio_transcriber
+    let transcription = transcribe_chunk(path, delay).await?;
+    Ok(transcription)
 }
 
 /// Returns the path to the directory where audio chunks will be stored

@@ -59,7 +59,7 @@ async fn terminate() -> Result<String, String> {
     match clear_chunks() {
         Ok(_) => {
             println!("Chunks cleared successfully");
-            Ok(format!("Fichiers temporaires supprimés.<br><br>Vous trouverez le fichiers texte de transcription sont dans le répertoire : {}", get_transcription_directory().unwrap().display()))
+            Ok(format!("Fichiers temporaires supprimés.<br><br>Vous trouverez le fichiers texte de transcription sont dans le répertoire : <b>{}</b>", get_transcription_directory().unwrap().display()))
         }
         Err(e) => {
             eprintln!("Error clearing chunks: {}", e);

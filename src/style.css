@@ -65,6 +65,12 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #999;
+}
+
 .file-drop-area {
   border: 2px dashed #ccc;
   border-radius: 8px;
@@ -86,6 +92,13 @@ button:focus-visible {
   border-color: #0080ff;
   box-shadow: 0 0 10px rgba(0, 128, 255, 0.3);
   transform: scale(1.02);
+}
+
+.file-drop-area.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+  border-color: #999;
 }
 
 .file-path-display {
@@ -165,6 +178,25 @@ button:focus-visible {
   word-wrap: break-word;
 }
 
+.timer-display {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  text-align: center;
+  font-family: monospace;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 4px;
+}
+
+#timer-value {
+  background-color: #f0f0f0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  border: 1px solid #ddd;
+  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
@@ -182,5 +214,9 @@ button:focus-visible {
   #log-message {
     background-color: #2a2a2a;
     border-color: #444;
+  }
+  #timer-value {
+    background-color: #333;
+    border-color: #555;
   }
 }

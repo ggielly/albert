@@ -8,6 +8,7 @@ use directories::UserDirs;
 
 const CHUNK_DURATION: u64 = 10; // MP3 chunk duration in minutes
 const CHUNK_DIRECTORY: &str = "mp3_chunks";
+const TRANSCRIPTION_DIRECTORY: &str = "transcriptions_albert";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -23,7 +24,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![split_file, send_chunk])
+        .invoke_handler(tauri::generate_handler![split_file, send_chunk, terminate])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -44,7 +45,7 @@ async fn split_file(file_path: String, session_name: String) -> Result<Vec<Strin
     }
 }
 
-// Résoudre problème blocking dans runtime async
+// / Sends a chunk for transcription to Albert
 #[tauri::command(rename_all = "snake_case")]
 async fn send_chunk(path: String, delay: u64) -> Result<String, String> {
     // Call the transcribe_chunk function from audio_transcriber
@@ -52,17 +53,27 @@ async fn send_chunk(path: String, delay: u64) -> Result<String, String> {
     Ok(transcription)
 }
 
+/// Terminates : clear the chunks directory
+#[tauri::command(rename_all = "snake_case")]
+async fn terminate() -> Result<String, String> {
+    match clear_chunks() {
+        Ok(_) => {
+            println!("Chunks cleared successfully");
+            Ok(format!("Fichiers temporaires supprimés.<br><br>Vous trouverez le fichiers texte de transcription sont dans le répertoire : {}", get_transcription_directory().unwrap().display()))
+        }
+        Err(e) => {
+            eprintln!("Error clearing chunks: {}", e);
+            Err(format!("Error clearing chunks: {}", e))
+        }
+    }
+}
+
+
 /// Returns the path to the directory where audio chunks will be stored
 pub fn get_chunk_directory() -> Result<PathBuf, String> {
-    // Get the user's download directory
-    let usr_dir: UserDirs;
-    if let Some(user_dirs) = UserDirs::new() {
-        usr_dir = user_dirs;
-    } else {
-        return Err("User directory not found".to_string());
-    };
+    let usr_dirs = get_user_directories()?;
     let dld_dir: &Path;
-        if let Some(download_dir) = usr_dir.download_dir() {
+        if let Some(download_dir) = usr_dirs.download_dir() {
         dld_dir = download_dir;
     } else {
         return Err("Dowload directory not found".to_string());
@@ -71,3 +82,30 @@ pub fn get_chunk_directory() -> Result<PathBuf, String> {
     let output_dir = dld_dir.join(CHUNK_DIRECTORY);
     Ok(output_dir)
 }
+
+/// Returns the path to the directory where transcription text files will be saved
+pub fn get_transcription_directory() -> Result<PathBuf, String> {
+    let usr_dirs = get_user_directories()?;
+    let doc_dir: &Path;
+        if let Some(document_dir) = usr_dirs.document_dir() {
+        doc_dir = document_dir;
+    } else {
+        return Err("Documents directory not found".to_string());
+    };
+    
+    let output_dir = doc_dir.join(TRANSCRIPTION_DIRECTORY);
+    if !output_dir.exists() {
+        std::fs::create_dir_all(&output_dir).map_err(|e| format!("Failed to create directory: {}", e))?;
+    }
+    Ok(output_dir)
+}
+
+/// Returns the path to the user's directories
+pub fn get_user_directories() -> Result<UserDirs, String> {
+    if let Some(user_dirs) = UserDirs::new() {
+        return Ok(user_dirs);
+    } else {
+        return Err("User directory not found".to_string());
+    };
+}
+

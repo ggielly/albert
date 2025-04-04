@@ -40,6 +40,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     </div>
   </div>
 `
+// Delay in seconds between each request to Albert
+// about  1 minute per audio chunk of 10'
+const DELAY = 55;
 
 // Get DOM elements
 const sessionNameInput = document.getElementById('session-name') as HTMLInputElement;
@@ -120,8 +123,9 @@ function handleFile(filePath: string) {
         })
         .then((response) => {
           // The Rust response an array of strings
-          let msgResponse = 'Découpage du fichier audio en morceaux de 10 minutes :<br>';
-          for (let i = 0; i < response.length; i++) {
+          let length = response.length;
+          let msgResponse = 'Découpage du fichier audio en ' + length.toString() + ' morceaux de 10 minutes maximum :<br><br>';
+          for (let i = 0; i < length; i++) {
             msgResponse += `${response[i]}<br>`;
           }
           logMessage(msgResponse);
@@ -129,7 +133,7 @@ function handleFile(filePath: string) {
         })
         .catch((error) => {
           // Handle any errors that occur during the invocation
-          logMessage('Erreur lors du découpage du fichier audio :<br>' + error);
+          logMessage('<br>Erreur lors du découpage du fichier audio :<br>' + error);
         }
         );
         // Hide the submit button after clicking
@@ -141,22 +145,59 @@ function handleFile(filePath: string) {
 }
 
 function send_chunks(chunks: string[]) {
-  logMessage('Envoi des morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau. Merci de patienter.<br>');
-  for (let i = 0; i < chunks.length; i++) {
-
-    // Delay the invocation by 80 seconds for each chunk
-    // Note : on ne peut pas utiliser setTimeout car il ne fonctionne pas dans le contexte de Tauri
-    let delay = i * 80;
-    invoke<string>('send_chunk', { path: chunks[i], delay: delay})
+  let length = chunks.length;
+  let duration = length * DELAY / 60; 
+  let minutes = Math.floor(duration);
+  let seconds = Math.round((duration - minutes) * 60);
+  logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau.<br>Durée totale maximum estimée à environ ' + minutes.toString() + '\' ' + seconds.toString() + '"<br>Merci de patienter...<br>');
+  let nb_processed = 0; // nb of processed files
+  let errors = 0; // nb of errors
+  let over = false; // boolean to check if all files are processed
+  for (let i = 0; i < length; i++) {
+    // Delay the invocation by DURATION seconds for each chunk
+    let delay = i * DELAY;
+    invoke<string>('send_chunk', { path: chunks[i], delay: delay })
       .then((response) => {
-        let msg = `fichier envoyé : ${chunks[i]}`;
+        let n = i + 1;
+        let msg = `fichier ${n} transcrit : ${response}`;
         logMessage(msg);
-        //logMessage(response);
+        nb_processed++;
+        over = (nb_processed === length);
+        if (over) {
+          terminate(errors);
+        }
       })
       .catch((error) => {
-        //logMessage(error);
+        logMessage(error);
+        nb_processed++;
+        errors++;
+        over = (nb_processed === length);
+        if (over) {
+          terminate(errors);
+        }
       });
   }
+}
+
+function terminate(errors: number) {
+  let msg = 'Transcription terminée';
+  if (errors > 0) {
+    msg += ' avec ' + errors.toString() + ' fichiers en erreur';
+  }
+  msg += '.';
+  logMessage(msg);
+  // Terminate the Tauri process
+  let submitButton = document.getElementById('file-submit-button') as HTMLButtonElement;
+  invoke<string>('terminate')
+    .then((response) => {
+      logMessage(response);
+      submitButton.hidden = false;
+    })
+    .catch((error) => {
+      logMessage('Erreur lors de la suppression des fichiers temporaires : ' + error);
+      submitButton.hidden = false;
+    });
+   
 }
 
 // Drag and drop events HTML5

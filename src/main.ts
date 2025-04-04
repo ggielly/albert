@@ -15,6 +15,13 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from '@tauri-apps/plugin-dialog';
 
 
+// Delay in seconds between each request to Albert
+// about  1 minute per audio chunk of 10'
+const DELAY = 50; // 50 seconds
+// Note : le délai est à ajuster en fonction de la taille du fichier audio et de la vitesse de traitement d'Albert
+
+
+
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
     <h1>ALBERT</h1>
@@ -37,9 +44,14 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       </div>
       <div id="log-message">
       </div>
+      <div id="timer-display" class="timer-display">
+        <span>Temps écoulé: </span>
+        <span id="timer-value">00:00</span>
+      </div>
     </div>
   </div>
 `
+
 
 // Get DOM elements
 const sessionNameInput = document.getElementById('session-name') as HTMLInputElement;
@@ -48,6 +60,39 @@ const cardSection = document.getElementById('card-section') as HTMLDivElement;
 const fileDropArea = document.getElementById('file-drop-area') as HTMLDivElement;
 const fileSelectButton = document.getElementById('file-select-button') as HTMLButtonElement;
 const filePathDisplay = document.getElementById('file-path-display') as HTMLDivElement;
+const timerValue = document.getElementById('timer-value') as HTMLSpanElement;
+
+// Timer variables
+let timerInterval: number | null = null;
+let secondsElapsed = 0;
+
+// Timer functions
+function startTimer() {
+  resetTimer();
+  timerInterval = window.setInterval(() => {
+    secondsElapsed++;
+    updateTimerDisplay();
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval !== null) {
+    window.clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function resetTimer() {
+  stopTimer();
+  secondsElapsed = 0;
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  const minutes = Math.floor(secondsElapsed / 60);
+  const seconds = secondsElapsed % 60;
+  timerValue.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
 
 // Validate session name input
 function validateSessionName(value: string): boolean {
@@ -67,6 +112,18 @@ function logMessage(message: string) {
   // Scroll to the bottom of the log message div
   logMessageDiv.scrollTop = logMessageDiv.scrollHeight;
   console.log(message);
+}
+
+// Function to disable file input elements
+function disableFileInputs() {
+  fileDropArea.classList.add('disabled');
+  fileSelectButton.disabled = true;
+}
+
+// Function to enable file input elements
+function enableFileInputs() {
+  fileDropArea.classList.remove('disabled');
+  fileSelectButton.disabled = false;
 }
 
 // Session name input validation
@@ -93,6 +150,9 @@ sessionNameInput.addEventListener('input', () => {
 
 // Handle file selection
 function handleFile(filePath: string) {
+  // Reset timer when selecting a new file
+  resetTimer();
+  
   // Get the file name from the path
   const fileName = filePath.split('/').pop() || '';
   const fileExtension = fileName.split('.').pop() || '';
@@ -111,19 +171,34 @@ function handleFile(filePath: string) {
     submitButton.hidden = false;
     // Add event listener to the submit button
     submitButton.addEventListener('click', async () => {
+        // Reset and start the timer when submitting
+        resetTimer();
+        startTimer();
+        
+        // Disable file drop area and select button
+        disableFileInputs();
+        
         // Get the validated session name
         const sessionName = sessionNameInput.value;
         
-        invoke<string>('split_file', { 
+        invoke<string[]>('split_file', { 
           file_path: filePath,
           session_name: sessionName
         })
         .then((response) => {
-          logMessage(response);
+          // The Rust response an array of strings
+          let length = response.length;
+          let msgResponse = 'Découpage du fichier audio en ' + length.toString() + ' morceaux de 10 minutes maximum :<br><br>';
+          for (let i = 0; i < length; i++) {
+            msgResponse += `${response[i]}<br>`;
+          }
+          logMessage(msgResponse);
+          send_chunks(response);
         })
         .catch((error) => {
           // Handle any errors that occur during the invocation
-          console.error('Erreur:', error);
+          logMessage('<br>Erreur lors du découpage du fichier audio :<br>' + error);
+          stopTimer(); // Stop timer on error
         }
         );
         // Hide the submit button after clicking
@@ -132,6 +207,66 @@ function handleFile(filePath: string) {
     );
   }
   filePathDisplay.innerHTML = msg;
+}
+
+function send_chunks(chunks: string[]) {
+  let length = chunks.length;
+  let duration = length * DELAY / 60; 
+  let minutes = Math.floor(duration);
+  let seconds = Math.round((duration - minutes) * 60);
+  logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau.<br>Durée totale maximum estimée à environ <b>' + minutes.toString() + '\' ' + seconds.toString() + '"</b><br>Merci de patienter...<br>');
+  let nb_processed = 0; // nb of processed files
+  let errors = 0; // nb of errors
+  let over = false; // boolean to check if all files are processed
+  for (let i = 0; i < length; i++) {
+    // Delay the invocation by DURATION seconds for each chunk
+    let delay = i * DELAY;
+    invoke<string>('send_chunk', { path: chunks[i], delay: delay })
+      .then((response) => {
+        let n = i + 1;
+        let msg = `fichier ${n} transcrit : ${response}`;
+        logMessage(msg);
+        nb_processed++;
+        over = (nb_processed === length);
+        if (over) {
+          terminate(errors);
+        }
+      })
+      .catch((error) => {
+        logMessage(error);
+        nb_processed++;
+        errors++;
+        over = (nb_processed === length);
+        if (over) {
+          terminate(errors);
+        }
+      });
+  }
+}
+
+function terminate(errors: number) {
+  let msg = 'Transcription terminée';
+  if (errors > 0) {
+    msg += ' avec ' + errors.toString() + ' fichiers en erreur';
+  }
+  msg += '.';
+  logMessage(msg);
+  // Terminate the Tauri process
+  let submitButton = document.getElementById('file-submit-button') as HTMLButtonElement;
+  invoke<string>('terminate')
+    .then((response) => {
+      logMessage(response);
+      submitButton.hidden = false;
+      stopTimer(); // Stop the timer when transcription is complete
+      enableFileInputs(); // Re-enable file input elements
+    })
+    .catch((error) => {
+      logMessage('Erreur lors de la suppression des fichiers temporaires : ' + error);
+      submitButton.hidden = false;
+      stopTimer(); // Stop the timer on error
+      enableFileInputs(); // Re-enable file input elements
+    });
+   
 }
 
 // Drag and drop events HTML5

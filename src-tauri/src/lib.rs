@@ -6,7 +6,6 @@ use audio_transcriber::transcribe_chunk;
 use std::path::{Path, PathBuf};
 use directories::UserDirs;
 
-const CHUNK_DURATION: u64 = 10; // MP3 chunk duration in minutes
 const CHUNK_DIRECTORY: &str = "mp3_chunks";
 const TRANSCRIPTION_DIRECTORY: &str = "transcriptions_albert";
 
@@ -31,9 +30,9 @@ pub fn run() {
 
 
 #[tauri::command(rename_all = "snake_case")]
-async fn split_file(file_path: String, session_name: String) -> Result<Vec<String>, String> {
+async fn split_file(file_path: String, session_name: String, chunk_duration: u64) -> Result<Vec<String>, String> {
     // Split the audio file into smaller chunks
-    match split_audio_file(&file_path, CHUNK_DURATION, &session_name) {
+    match split_audio_file(&file_path, chunk_duration, &session_name) {
         Ok(chunk_paths) => {
             println!("Audio file split successfully");
             return Ok(chunk_paths);
@@ -47,9 +46,9 @@ async fn split_file(file_path: String, session_name: String) -> Result<Vec<Strin
 
 // / Sends a chunk for transcription to Albert
 #[tauri::command(rename_all = "snake_case")]
-async fn send_chunk(path: String, delay: u64) -> Result<String, String> {
+async fn send_chunk(path: String, delay: u64, use_system_proxy: bool) -> Result<String, String> {
     // Call the transcribe_chunk function from audio_transcriber
-    let transcription = transcribe_chunk(path, delay).await?;
+    let transcription = transcribe_chunk(path, delay, use_system_proxy).await?;
     Ok(transcription)
 }
 
@@ -59,7 +58,7 @@ async fn terminate() -> Result<String, String> {
     match clear_chunks() {
         Ok(_) => {
             println!("Chunks cleared successfully");
-            Ok(format!("Fichiers temporaires supprimés.<br><br>Vous trouverez le fichiers texte de transcription sont dans le répertoire : <b>{}</b>", get_transcription_directory().unwrap().display()))
+            Ok(format!("Fichiers temporaires supprimés.<br><br>Vous trouverez les fichiers texte de transcription sont dans le répertoire : <b>{}</b>", get_transcription_directory().unwrap().display()))
         }
         Err(e) => {
             eprintln!("Error clearing chunks: {}", e);

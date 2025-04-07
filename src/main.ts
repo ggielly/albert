@@ -20,7 +20,8 @@ import { open } from '@tauri-apps/plugin-dialog';
 const DELAY = 50; // 50 seconds
 // Note : le délai est à ajuster en fonction de la taille du fichier audio et de la vitesse de traitement d'Albert
 
-
+// Default chunk duration (in minutes)
+const CHUNKDURATION = 10;
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
@@ -47,6 +48,48 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div id="timer-display" class="timer-display">
         <span>Temps écoulé: </span>
         <span id="timer-value">00:00</span>
+      </div>
+    </div>
+    
+    <!-- Settings Panel -->
+    <div id="settings-panel" class="settings-panel">
+      <div id="settings-tab" class="settings-tab">
+        <img src="assets/parametres.png" alt="Settings" />
+      </div>
+      <div class="settings-content">
+        <div class="settings-header">
+          <h2>Paramètres</h2>
+          <button id="close-settings" class="close-settings">
+            <img src="assets/fleche-droite.png" alt="Close" />
+          </button>
+        </div>
+        <div class="settings-body">
+          <div class="settings-item">
+            <label for="chunk-duration">Durée en minutes des découpages du fichier audio</label>
+            <div class="slider-container">
+              <input 
+                type="range" 
+                id="chunk-duration" 
+                min="2" 
+                max="12" 
+                value="${CHUNKDURATION}" 
+                step="1" 
+                class="slider"
+              >
+              <div class="slider-value" id="chunk-duration-value">${CHUNKDURATION}</div>
+            </div>
+          </div>
+          <div class="settings-item checkbox-setting">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                id="no-proxy" 
+                class="checkbox-input"
+              >
+              <span class="checkbox-text">Ne pas utiliser le proxy du système</span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -149,6 +192,7 @@ sessionNameInput.addEventListener('input', () => {
 });
 
 // Handle file selection
+// The call to the Rust function "split_file()" is done in the handleFile function
 function handleFile(filePath: string) {
   // Reset timer when selecting a new file
   resetTimer();
@@ -183,12 +227,13 @@ function handleFile(filePath: string) {
         
         invoke<string[]>('split_file', { 
           file_path: filePath,
-          session_name: sessionName
+          session_name: sessionName,
+          chunk_duration: chunkDuration
         })
         .then((response) => {
           // The Rust response an array of strings
           let length = response.length;
-          let msgResponse = 'Découpage du fichier audio en ' + length.toString() + ' morceaux de 10 minutes maximum :<br><br>';
+          let msgResponse = 'Découpage du fichier audio en ' + length.toString() + ' morceaux de ' + chunkDuration.toString() + ' minutes maximum :<br><br>';
           for (let i = 0; i < length; i++) {
             msgResponse += `${response[i]}<br>`;
           }
@@ -214,14 +259,14 @@ function send_chunks(chunks: string[]) {
   let duration = length * DELAY / 60; 
   let minutes = Math.floor(duration);
   let seconds = Math.round((duration - minutes) * 60);
-  logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau.<br>Durée totale maximum estimée à environ <b>' + minutes.toString() + '\' ' + seconds.toString() + '"</b><br>Merci de patienter...<br>');
+  logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau.<br>Durée totale maximum estimée à environ <b>' + minutes.toString() + '\' ' + seconds.toString() + '"</b><br>Merci de patienter...<br><br>');
   let nb_processed = 0; // nb of processed files
   let errors = 0; // nb of errors
   let over = false; // boolean to check if all files are processed
   for (let i = 0; i < length; i++) {
     // Delay the invocation by DURATION seconds for each chunk
     let delay = i * DELAY;
-    invoke<string>('send_chunk', { path: chunks[i], delay: delay })
+    invoke<string>('send_chunk', { path: chunks[i], delay: delay, use_system_proxy: useSystemProxy })
       .then((response) => {
         let n = i + 1;
         let msg = `fichier ${n} transcrit : ${response}`;
@@ -286,13 +331,31 @@ fileDropArea.addEventListener('dragleave', (event) => {
 
 // Traitement Tauri du drop d'un fichier
 // Tauri onDragDropEvent
-const _unlisten = await getCurrentWebview().onDragDropEvent((event) => {
-  if (event.payload.type === 'drop') {
-    // Handle the first dropped file
-    const filePath = event.payload.paths[0];
-    handleFile(filePath); 
+let _unlisten: () => void;
+
+async function setupDragDropListener() {
+  _unlisten = await getCurrentWebview().onDragDropEvent((event) => {
+    if (event.payload.type === 'drop') {
+      // Handle the first dropped file
+      const filePath = event.payload.paths[0];
+      handleFile(filePath); 
+    }
+  });
+}
+
+// Call the setup function immediately
+setupDragDropListener();
+
+// Add a cleanup function that can be called when needed
+function cleanup() {
+  if (_unlisten) {
+    _unlisten();
+    console.log('Drag-drop event listener removed');
   }
-});
+}
+
+// Add event listener for beforeunload to clean up when the window is closed
+window.addEventListener('beforeunload', cleanup);
  
 // Traitement Tauri d'ouverture du selecteur de fichiers pour obtenir le path complet
 // Tauri file selector dialog
@@ -316,6 +379,55 @@ fileSelectButton.addEventListener('click', async (_event) => {
     handleFile(file as string);
   }
 });
+
+// Settings panel functionality
+const settingsPanel = document.getElementById('settings-panel') as HTMLDivElement;
+const settingsTab = document.getElementById('settings-tab') as HTMLDivElement;
+const closeSettings = document.getElementById('close-settings') as HTMLButtonElement;
+const chunkDurationSlider = document.getElementById('chunk-duration') as HTMLInputElement;
+const chunkDurationValue = document.getElementById('chunk-duration-value') as HTMLDivElement;
+const noProxyCheckbox = document.getElementById('no-proxy') as HTMLInputElement;
+
+
+// Settings global variables
+let useSystemProxy = true;
+let chunkDuration = parseInt(chunkDurationSlider.value);
+
+// Function to handle slider change
+function handleChunkDurationChange() {
+  chunkDuration = parseInt(chunkDurationSlider.value);
+  chunkDurationValue.textContent = chunkDurationSlider.value;
+}
+
+// Function to handle checkbox change
+function handleProxyChange() {
+  useSystemProxy = !noProxyCheckbox.checked;
+  console.log(`Use system proxy: ${useSystemProxy}`);
+}
+
+// Function to open settings panel
+function openSettingsPanel() {
+  settingsPanel.classList.add('open');
+  // Tab will be hidden via CSS
+}
+
+// Function to close settings panel
+function closeSettingsPanel() {
+  settingsPanel.classList.remove('open');
+  
+  // Make tab visible again after transition completes
+  setTimeout(() => {
+    // This ensures the tab is fully visible after the panel is hidden
+    settingsTab.style.opacity = '1';
+    settingsTab.style.pointerEvents = 'auto';
+  }, 300); // Match transition duration
+}
+
+// Event listeners for settings panel
+settingsTab.addEventListener('click', openSettingsPanel);
+closeSettings.addEventListener('click', closeSettingsPanel);
+chunkDurationSlider.addEventListener('input', handleChunkDurationChange);
+noProxyCheckbox.addEventListener('change', handleProxyChange);
 
 
 

@@ -7,7 +7,7 @@ use tokio::time::{sleep, Duration};
 
 /// Cette fonction commence par attendre un certain temps avant de lancer 
 /// la transcription pour ne pas saturer l'API Albert.
-pub async fn transcribe_chunk(path: String, delay: u64) -> Result<String, String> {
+pub async fn transcribe_chunk(path: String, delay: u64, use_system_proxy: bool) -> Result<String, String> {
     // Simulate a delay
     sleep(Duration::from_secs(delay)).await;
     println!("Starting transcription after {} seconds for: {}", delay, path);
@@ -16,13 +16,13 @@ pub async fn transcribe_chunk(path: String, delay: u64) -> Result<String, String
     let path_clone = path.clone();
     let output_file_clone = output_file.clone();
     
-    // En attendant d'implémenter des fonctions async dans la bibliothèque transcription_albert
+    // En attendant d'implémenter deXZ000943146TSs fonctions async dans la bibliothèque transcription_albert
     // On met tous les appels bloquants dans une tâche spawn_blocking
     // Use spawn_blocking to offload the IO blocking operation
     let result = task::spawn_blocking(move || {
         let output_file_copy = output_file_clone.clone();
         
-        let transcription = transcribe_audio(&path_clone, &output_file_clone);
+        let transcription = transcribe_audio(&path_clone, &output_file_clone, use_system_proxy);
         match transcription {
             Ok(_) => {
                 println!("Transcription completed successfully for: {}", path_clone);

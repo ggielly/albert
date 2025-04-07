@@ -49,6 +49,10 @@ pub fn clear_chunks() -> Result<(), String> {
     let chunk_dir = crate::get_chunk_directory()?;
     println!("Chunk directory: {}", chunk_dir.display());
 
+    // Check if the directory exists
+    if !chunk_dir.exists() {
+        return Ok(());  // Directory doesn't exist, nothing to clear
+    }
     // Remove the directory and its contents
     match std::fs::remove_dir_all(&chunk_dir) {
         Ok(_) => {

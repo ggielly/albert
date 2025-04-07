@@ -54,13 +54,13 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <!-- Settings Panel -->
     <div id="settings-panel" class="settings-panel">
       <div id="settings-tab" class="settings-tab">
-        <img src="assets/parametres.png" alt="Settings" />
+        <img src="/assets/parametres.png" alt="Settings" />
       </div>
       <div class="settings-content">
         <div class="settings-header">
           <h2>Paramètres</h2>
           <button id="close-settings" class="close-settings">
-            <img src="assets/fleche-droite.png" alt="Close" />
+            <img src="/assets/fleche-droite.png" alt="Close" />
           </button>
         </div>
         <div class="settings-body">

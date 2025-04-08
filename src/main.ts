@@ -89,7 +89,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             </div>
             <div class="chunk-duration-info">
               <p>Le fichier audio va être découpé en plusieurs fichiers audio plus courts avant d'être transmis successivement à Albert, le nom de l'IA de la DINUM, pour transcription. <br>  
-              Le temps de traitement d'Albert est d'environ 1 minute par fichier audio mp3 de 10 minutes.<br>
+              Le temps de traitement d'Albert est d'environ 1 minute par fichier audio mp3 de 10 minutes ou encore de 1 minute par tranche de taille de 10 Mo.<br>
               Ainsi, un fichier audio mp3 de 1 heure pourra par exemple être découpé en 6 fichiers audio de 10 minutes et prendra environ 6 minutes à être traité par Albert.<br>
               Chaque morceau fait l'objet d'une transcription séparée et sera enregistré le répertoire transcription_albert du dossier Documents de votre ordinateur. </p>
             </div>

@@ -293,11 +293,41 @@ button:disabled {
   font-weight: 500;
 }
 
+/* Added label-with-value container */
+.label-with-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.label-with-value label {
+  margin-bottom: 0;
+}
+
+.slider-value {
+  min-width: 2rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #444;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: bold;
+  margin-left: 10px; /* Add space between label and value */
+  /* Remove the absolute positioning that was causing issues */
+  position: static;
+  transform: none;
+}
+
 /* Slider styles */
 .slider-container {
   display: flex;
   align-items: center;
   gap: 1rem;
+  margin-bottom: 0.5rem;
+  max-width: 50%; /* Reduce slider width to half of its container */
+  margin-left: auto;
+  margin-right: auto; /* Center the slider in its container */
+  position: relative;
 }
 
 .slider {
@@ -339,13 +369,15 @@ button:disabled {
   background: #0066cc;
 }
 
-.slider-value {
-  min-width: 2rem;
-  padding: 0.25rem 0.5rem;
-  background-color: #444;
-  border-radius: 4px;
-  text-align: center;
-  font-weight: bold;
+.slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  max-width: 50%; /* Match the slider container width */
+  margin-left: auto;
+  margin-right: auto; /* Center the ticks */
 }
 
 /* Checkbox styles */
@@ -368,6 +400,23 @@ button:disabled {
 
 .checkbox-text {
   font-weight: normal;
+}
+
+/* Added styles for info sections */
+.chunk-duration-info,
+.checkbox-info {
+  text-align: left;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background-color: rgba(128, 128, 128, 0.1);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.chunk-duration-info p,
+.checkbox-info p {
+  margin: 0.5rem 0;
+  line-height: 1.4;
 }
 
 @media (prefers-color-scheme: light) {

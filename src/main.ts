@@ -65,7 +65,10 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
         </div>
         <div class="settings-body">
           <div class="settings-item">
-            <label for="chunk-duration">Durée en minutes des découpages du fichier audio</label>
+            <div class="label-with-value">
+              <label for="chunk-duration"><b>Durée en minutes de découpage du fichier audio</b></label>
+              <div class="slider-value" id="chunk-duration-value">${CHUNKDURATION}</div>
+            </div>
             <div class="slider-container">
               <input 
                 type="range" 
@@ -74,11 +77,25 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
                 max="12" 
                 value="${CHUNKDURATION}" 
                 step="1" 
-                class="slider"
+                class="slider" 
+                list="chunk-duration-ticks"
               >
-              <div class="slider-value" id="chunk-duration-value">${CHUNKDURATION}</div>
+              <datalist id="chunk-duration-ticks">
+                ${Array.from({length: 11}, (_, i) => i + 2).map(val => `<option value="${val}"></option>`).join('')}
+              </datalist>
+            </div>
+            <div class="slider-ticks">
+              ${Array.from({length: 11}, (_, i) => i + 2).map(val => `<span class="tick">${val}</span>`).join('')}
+            </div>
+            <div class="chunk-duration-info">
+              <p>Le fichier audio va être découpé en plusieurs fichiers audio plus courts avant d'être transmis successivement à Albert, le nom de l'IA de la DINUM, pour transcription. <br>  
+              Le temps de traitement d'Albert est d'environ 1 minute par fichier audio mp3 de 10 minutes.<br>
+              Ainsi, un fichier audio mp3 de 1 heure pourra par exemple être découpé en 6 fichiers audio de 10 minutes et prendra environ 6 minutes à être traité par Albert.<br>
+              Chaque morceau fait l'objet d'une transcription séparée et sera enregistré le répertoire transcription_albert du dossier Documents de votre ordinateur. </p>
             </div>
           </div>
+
+            <label for="no-proxy"><b>Paramètres de proxy</b></label>
           <div class="settings-item checkbox-setting">
             <label class="checkbox-label">
               <input 
@@ -88,6 +105,11 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               >
               <span class="checkbox-text">Ne pas utiliser le proxy du système</span>
             </label>
+            <div class="checkbox-info">
+              <p>Par défaut, ce logiciel utilise les paramètres proxy du système.<br>
+              Ce proxy peut parfois avoir des limitations sur les temps de réponse (timeout) ou sur la taille des fichiers autorisée à l'envoi.<br>
+              Si vous cochez cette case, le proxy du système ne sera pas utilisé et la connexion se fera directement à Albert, dans la mesure où votre ordinateur a accès directement à l'Internet.<br>
+              </p>
           </div>
         </div>
       </div>

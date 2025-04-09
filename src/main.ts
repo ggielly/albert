@@ -1,19 +1,13 @@
+// Required modules :
+// cargo tauri add shell
+// cargo tauri add @tauri-apps/api/core
+
 import './style.css'
 
 import { invoke } from '@tauri-apps/api/core';
-
-// Note : l'event file drop n'est pas détecté par la webview
-// on ajoute donc la prise en charge de onDragDrop
-// https://tauri.app/reference/javascript/api/namespacewebviewwindow/#ondragdropevent
-// on installera donc la librairie @tauri-apps/api au préalable
-// pnpm install @tauri-apps/api
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-
-// Idem on ajoute l'API Tauri dialog pour récupérer le chemin d'un fichier sur le filesystem local (HTML5 ne l'autorise pas)
-// https://tauri.app/plugin/dialog/
-// pnpm tauri add dialog
 import { open } from '@tauri-apps/plugin-dialog';
-
+import { open as openExternal } from '@tauri-apps/plugin-shell';
 
 // Default chunk duration (in minutes)
 const CHUNKDURATION = 10;
@@ -107,6 +101,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               </p>
           </div>
         </div>
+        <div class="api-status-info">
+          <p>État actuel des services Albert : <a href="#" id="api-status-link">Consulter</a></p>
+        </div>
         <div class="version-info">
           <p>v0.2.0</p>
         </div>
@@ -114,7 +111,6 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     </div>
   </div>
 `
-
 
 // Get DOM elements
 const sessionNameInput = document.getElementById('session-name') as HTMLInputElement;
@@ -458,6 +454,12 @@ settingsTab.addEventListener('click', openSettingsPanel);
 closeSettings.addEventListener('click', closeSettingsPanel);
 chunkDurationSlider.addEventListener('input', handleChunkDurationChange);
 noProxyCheckbox.addEventListener('change', handleProxyChange);
+
+// Add event listener for API status link to open in system browser
+document.getElementById('api-status-link')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  await openExternal('https://albert.api.etalab.gouv.fr/status/api');
+});
 
 
 

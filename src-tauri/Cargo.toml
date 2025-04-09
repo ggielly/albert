@@ -28,3 +28,4 @@ directories = "6.0"
 tokio = { version = "1", features = ["full"] }
 mp3_splitter = { path = "/home/jerome/scripts/rust/mp3_splitter" }
 transcription_albert = { path = "/home/jerome/scripts/rust/transcription_albert" }
+tauri-plugin-shell = "2"

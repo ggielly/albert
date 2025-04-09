@@ -295,6 +295,28 @@ button:disabled {
   margin: 0.25rem 0;
 }
 
+/* API Status link styles */
+.api-status-info {
+  text-align: center;
+  padding: 0.5rem;
+  border-top: 1px solid #444;
+  font-size: 0.9rem;
+}
+
+.api-status-info p {
+  margin: 0.25rem 0;
+}
+
+.api-status-info a {
+  color: #0080ff;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.api-status-info a:hover {
+  text-decoration: underline;
+}
+
 /* Settings items */
 .settings-item {
   margin-bottom: 1.5rem;
@@ -465,7 +487,8 @@ button:disabled {
     border: 1px solid #ddd;
   }
   
-  .version-info {
+  .version-info,
+  .api-status-info {
     border-top-color: #ddd;
   }
 }

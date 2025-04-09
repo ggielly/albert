@@ -1,13 +1,11 @@
 use std::path::Path;
-use transcription_albert::{transcribe_audio_async, format_transcription};
-
+use transcription_albert::{format_transcription, transcribe_audio_async};
 
 pub async fn transcribe_chunk(path: String, use_system_proxy: bool) -> Result<String, String> {
-    
     println!("Starting transcription for: {}", path);
 
     let output_file = format!("{}.json", path);
-    
+
     // Call the async transcription function directly without spawning a thread
     match transcribe_audio_async(&path, &output_file, use_system_proxy).await {
         Ok(_) => {
@@ -17,13 +15,13 @@ pub async fn transcribe_chunk(path: String, use_system_proxy: bool) -> Result<St
                 Ok(formatted_path) => {
                     println!("Transcription formatted successfully: {}", formatted_path);
                     Ok(formatted_path)
-                },
+                }
                 Err(e) => {
                     eprintln!("Error formatting transcription: {}", e);
                     Err(format!("Error formatting transcription: {}", e))
                 }
             }
-        },
+        }
         Err(e) => {
             eprintln!("Error during transcription: {} for {}", e, path);
             Err(format!("Error during transcription: {} for {}", e, path))
@@ -34,7 +32,11 @@ pub async fn transcribe_chunk(path: String, use_system_proxy: bool) -> Result<St
 pub fn format_transcription_file(path: String) -> Result<String, String> {
     let trscr_dir = crate::get_transcription_directory()?;
     let filename = Path::new(&path).file_name().unwrap(); // on est sûr ici que le nom de fichier est valide
-    let cleared_filename = filename.to_str().unwrap().replace(".json", "").replace(".mp3", "");
+    let cleared_filename = filename
+        .to_str()
+        .unwrap()
+        .replace(".json", "")
+        .replace(".mp3", "");
 
     let output_file = format!("{}/{}.txt", trscr_dir.display(), cleared_filename);
     format_transcription(&path, &output_file);

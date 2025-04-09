@@ -15,11 +15,6 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from '@tauri-apps/plugin-dialog';
 
 
-// Delay in seconds between each request to Albert
-// about  1 minute per audio chunk of 10'
-const DELAY = 50; // 50 seconds
-// Note : le délai est à ajuster en fonction de la taille du fichier audio et de la vitesse de traitement d'Albert
-
 // Default chunk duration (in minutes)
 const CHUNKDURATION = 10;
 
@@ -111,6 +106,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               Si vous cochez cette case, le proxy du système ne sera pas utilisé et la connexion se fera directement à Albert, dans la mesure où votre ordinateur a accès directement à l'Internet.<br>
               </p>
           </div>
+        </div>
+        <div class="version-info">
+          <p>v0.2.0</p>
         </div>
       </div>
     </div>
@@ -260,7 +258,7 @@ function handleFile(filePath: string) {
             msgResponse += `${response[i]}<br>`;
           }
           logMessage(msgResponse);
-          send_chunks(response);
+          send_chunks(response, chunkDuration);
         })
         .catch((error) => {
           // Handle any errors that occur during the invocation
@@ -276,38 +274,48 @@ function handleFile(filePath: string) {
   filePathDisplay.innerHTML = msg;
 }
 
-function send_chunks(chunks: string[]) {
+function send_chunks(chunks: string[], chunkDuration: number) {
   let length = chunks.length;
-  let duration = length * DELAY / 60; 
+  // Il faut 1' pour traiter 10 Mo ou 10 minutes d'audio
+  let duration = length * chunkDuration * 0.1; 
   let minutes = Math.floor(duration);
   let seconds = Math.round((duration - minutes) * 60);
+  
   logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau.<br>Durée totale maximum estimée à environ <b>' + minutes.toString() + '\' ' + seconds.toString() + '"</b><br>Merci de patienter...<br><br>');
-  let nb_processed = 0; // nb of processed files
-  let errors = 0; // nb of errors
-  let over = false; // boolean to check if all files are processed
-  for (let i = 0; i < length; i++) {
-    // Delay the invocation by DURATION seconds for each chunk
-    let delay = i * DELAY;
-    invoke<string>('send_chunk', { path: chunks[i], delay: delay, use_system_proxy: useSystemProxy })
-      .then((response) => {
-        let n = i + 1;
-        let msg = `fichier ${n} transcrit : ${response}`;
-        logMessage(msg);
-        nb_processed++;
-        over = (nb_processed === length);
-        if (over) {
-          terminate(errors);
-        }
-      })
-      .catch((error) => {
-        logMessage(error);
-        nb_processed++;
-        errors++;
-        over = (nb_processed === length);
-        if (over) {
-          terminate(errors);
-        }
-      });
+  
+  // Process chunks sequentially with their respective delays
+  processChunksSequentially(chunks, 0, 0);
+}
+
+// Process chunks one at a time
+// This function will be called recursively
+// to process each chunk sequentially
+async function processChunksSequentially(chunks: string[], index: number, errors: number) {
+  // Base case: all chunks processed
+  if (index >= chunks.length) {
+    terminate(errors);
+    return;
+  }
+  
+  const path = chunks[index];
+  
+  try {
+    const response = await invoke<string>('send_chunk', { 
+      path, 
+      use_system_proxy: useSystemProxy 
+    });
+    
+    const n = index + 1;
+    const msg = `fichier ${n} transcrit : ${response}`;
+    logMessage(msg);
+    
+    // Process the next chunk
+    processChunksSequentially(chunks, index + 1, errors);
+  } catch (error) {
+    logMessage(`Erreur pour le fichier ${index + 1}: ${error}`);
+    
+    // Process the next chunk, but increment the error count
+    processChunksSequentially(chunks, index + 1, errors + 1);
   }
 }
 

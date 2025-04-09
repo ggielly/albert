@@ -282,6 +282,19 @@ button:disabled {
   flex-grow: 1;
 }
 
+/* Version info at the bottom of settings panel */
+.version-info {
+  text-align: center;
+  padding: 0.5rem;
+  border-top: 1px solid #444;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.version-info p {
+  margin: 0.25rem 0;
+}
+
 /* Settings items */
 .settings-item {
   margin-bottom: 1.5rem;
@@ -450,6 +463,10 @@ button:disabled {
   .slider-value {
     background-color: #f0f0f0;
     border: 1px solid #ddd;
+  }
+  
+  .version-info {
+    border-top-color: #ddd;
   }
 }
 

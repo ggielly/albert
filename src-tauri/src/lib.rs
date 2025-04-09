@@ -46,9 +46,9 @@ async fn split_file(file_path: String, session_name: String, chunk_duration: u64
 
 // / Sends a chunk for transcription to Albert
 #[tauri::command(rename_all = "snake_case")]
-async fn send_chunk(path: String, delay: u64, use_system_proxy: bool) -> Result<String, String> {
+async fn send_chunk(path: String, use_system_proxy: bool) -> Result<String, String> {
     // Call the transcribe_chunk function from audio_transcriber
-    let transcription = transcribe_chunk(path, delay, use_system_proxy).await?;
+    let transcription = transcribe_chunk(path, use_system_proxy).await?;
     Ok(transcription)
 }
 

@@ -1,5 +1,5 @@
 // Required modules :
-// cargo tauri add shell
+// cargo tauri plugin add shell
 // cargo tauri add @tauri-apps/api/core
 
 import './style.css'
@@ -31,6 +31,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       </div>
       <div>
         <button id="file-submit-button" hidden>Transcrire</button>
+        <button id="file-cancel-button" hidden>Annuler</button>
       </div>
       <div id="log-message">
       </div>
@@ -238,6 +239,10 @@ function handleFile(filePath: string) {
         // Disable file drop area and select button
         disableFileInputs();
         
+        // Hide submit button and show cancel button
+        submitButton.hidden = true;
+        document.getElementById('file-cancel-button')!.hidden = false;
+        
         // Get the validated session name
         const sessionName = sessionNameInput.value;
         
@@ -270,14 +275,101 @@ function handleFile(filePath: string) {
   filePathDisplay.innerHTML = msg;
 }
 
+// Global variable to track if processing should continue
+let isCancelled = false;
+
+// Add event listener for the cancel button
+document.getElementById('file-cancel-button')?.addEventListener('click', async () => {
+  // Show confirmation dialog
+  if (await showConfirmationDialog()) {
+    // Set the cancellation flag
+    isCancelled = true;
+    
+    logMessage("Annulation en cours... Arrêt des transcriptions.");
+    
+    // Call terminate to clean up temporary files
+    terminate(0);
+  }
+});
+
+// Function to show a confirmation dialog
+async function showConfirmationDialog(): Promise<boolean> {
+  return new Promise((resolve) => {
+    // Create dialog overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'dialog-overlay';
+    
+    // Create dialog box
+    const dialog = document.createElement('div');
+    dialog.className = 'dialog-box';
+    
+    // Add dialog content
+    dialog.innerHTML = `
+      <p>Confirmer l'annulation de la transcription OUI/NON ?</p>
+      <div class="dialog-buttons">
+        <button id="dialog-yes" class="dialog-button">OUI</button>
+        <button id="dialog-no" class="dialog-button dialog-button-primary">NON</button>
+      </div>
+    `;
+    
+    // Add dialog to overlay and overlay to body
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    
+    // Focus the "NON" button (default option)
+    setTimeout(() => {
+      const noButton = document.getElementById('dialog-no');
+      if (noButton) noButton.focus();
+    }, 0);
+    
+    // Add event listeners for buttons
+    const yesButton = document.getElementById('dialog-yes');
+    const noButton = document.getElementById('dialog-no');
+    
+    if (yesButton) {
+      yesButton.addEventListener('click', () => {
+        document.body.removeChild(overlay);
+        resolve(true);
+      });
+    }
+    
+    if (noButton) {
+      noButton.addEventListener('click', () => {
+        document.body.removeChild(overlay);
+        resolve(false);
+      });
+      
+      // Set NON as default option with Enter key
+      noButton.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          document.body.removeChild(overlay);
+          resolve(false);
+        }
+      });
+    }
+    
+    // Close dialog on Escape key
+    document.addEventListener('keydown', function escHandler(e) {
+      if (e.key === 'Escape') {
+        document.body.removeChild(overlay);
+        document.removeEventListener('keydown', escHandler);
+        resolve(false);
+      }
+    });
+  });
+}
+
 function send_chunks(chunks: string[], chunkDuration: number) {
+  // Reset cancellation flag when starting new processing
+  isCancelled = false;
+  
   let length = chunks.length;
   // Il faut 1' pour traiter 10 Mo ou 10 minutes d'audio
   let duration = length * chunkDuration * 0.1; 
   let minutes = Math.floor(duration);
   let seconds = Math.round((duration - minutes) * 60);
   
-  logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau.<br>Durée totale maximum estimée à environ <b>' + minutes.toString() + '\' ' + seconds.toString() + '"</b><br>Merci de patienter...<br><br>');
+  logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau.<br>Durée totale maximum estimée à environ <b>' + minutes.toString() + '\' ' + '0' + seconds.toString().slice(-2) + '"</b><br>Merci de patienter...<br><br>');
   
   // Process chunks sequentially with their respective delays
   processChunksSequentially(chunks, 0, 0);
@@ -287,6 +379,12 @@ function send_chunks(chunks: string[], chunkDuration: number) {
 // This function will be called recursively
 // to process each chunk sequentially
 async function processChunksSequentially(chunks: string[], index: number, errors: number) {
+  // Check for cancellation
+  if (isCancelled) {
+    logMessage("Transcription annulée par l'utilisateur.");
+    return;
+  }
+
   // Base case: all chunks processed
   if (index >= chunks.length) {
     terminate(errors);
@@ -301,6 +399,12 @@ async function processChunksSequentially(chunks: string[], index: number, errors
       use_system_proxy: useSystemProxy 
     });
     
+    // Check for cancellation again after processing
+    if (isCancelled) {
+      logMessage("Transcription annulée par l'utilisateur.");
+      return;
+    }
+    
     const n = index + 1;
     const msg = `fichier ${n} transcrit : ${response}`;
     logMessage(msg);
@@ -308,6 +412,12 @@ async function processChunksSequentially(chunks: string[], index: number, errors
     // Process the next chunk
     processChunksSequentially(chunks, index + 1, errors);
   } catch (error) {
+    // Check for cancellation on error too
+    if (isCancelled) {
+      logMessage("Transcription annulée par l'utilisateur.");
+      return;
+    }
+    
     logMessage(`Erreur pour le fichier ${index + 1}: ${error}`);
     
     // Process the next chunk, but increment the error count
@@ -316,28 +426,34 @@ async function processChunksSequentially(chunks: string[], index: number, errors
 }
 
 function terminate(errors: number) {
-  let msg = 'Transcription terminée';
-  if (errors > 0) {
+  let msg = isCancelled ? 'Transcription annulée' : 'Transcription terminée';
+  if (errors > 0 && !isCancelled) {
     msg += ' avec ' + errors.toString() + ' fichiers en erreur';
   }
   msg += '.';
   logMessage(msg);
+  
   // Terminate the Tauri process
   let submitButton = document.getElementById('file-submit-button') as HTMLButtonElement;
-  invoke<string>('terminate')
+  let cancelButton = document.getElementById('file-cancel-button') as HTMLButtonElement;
+  
+  invoke<string>('terminate_transcription', { cancelled: isCancelled })
     .then((response) => {
       logMessage(response);
+      // Hide cancel button and show submit button
+      cancelButton.hidden = true;
       submitButton.hidden = false;
-      stopTimer(); // Stop the timer when transcription is complete
-      enableFileInputs(); // Re-enable file input elements
+      stopTimer();
+      enableFileInputs();
     })
     .catch((error) => {
       logMessage('Erreur lors de la suppression des fichiers temporaires : ' + error);
+      // Hide cancel button and show submit button
+      cancelButton.hidden = true;
       submitButton.hidden = false;
-      stopTimer(); // Stop the timer on error
-      enableFileInputs(); // Re-enable file input elements
+      stopTimer();
+      enableFileInputs();
     });
-   
 }
 
 // Drag and drop events HTML5
@@ -353,7 +469,6 @@ fileDropArea.addEventListener('dragleave', (event) => {
   event.stopPropagation();
   fileDropArea.classList.remove('drag-over');
 });
-
 
 // Traitement Tauri du drop d'un fichier
 // Tauri onDragDropEvent
@@ -413,7 +528,6 @@ const closeSettings = document.getElementById('close-settings') as HTMLButtonEle
 const chunkDurationSlider = document.getElementById('chunk-duration') as HTMLInputElement;
 const chunkDurationValue = document.getElementById('chunk-duration-value') as HTMLDivElement;
 const noProxyCheckbox = document.getElementById('no-proxy') as HTMLInputElement;
-
 
 // Settings global variables
 let useSystemProxy = true;

@@ -1,5 +1,5 @@
 // Required modules :
-// cargo tauri plugin add shell
+// cargo tauri add shell
 // cargo tauri add @tauri-apps/api/core
 
 import './style.css'

@@ -6,7 +6,7 @@ use audio_transcriber::transcribe_chunk;
 use directories::UserDirs;
 use std::path::{Path, PathBuf};
 
-const CHUNK_DIRECTORY: &str = "mp3_chunks";
+const CHUNK_DIRECTORY: &str = "audio_chunks";
 const TRANSCRIPTION_DIRECTORY: &str = "transcriptions_albert";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -50,9 +50,9 @@ async fn split_file(
 
 // / Sends a chunk for transcription to Albert
 #[tauri::command(rename_all = "snake_case")]
-async fn send_chunk(path: String, use_system_proxy: bool) -> Result<String, String> {
+async fn send_chunk(path: String, use_system_proxy: bool, language: Option<String>) -> Result<String, String> {
     // Call the transcribe_chunk function from audio_transcriber
-    let transcription = transcribe_chunk(path, use_system_proxy).await?;
+    let transcription = transcribe_chunk(path, use_system_proxy, language).await?;
     Ok(transcription)
 }
 

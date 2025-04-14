@@ -1,13 +1,16 @@
 use std::path::Path;
 use transcription_albert::{format_transcription, transcribe_audio_async};
 
-pub async fn transcribe_chunk(path: String, use_system_proxy: bool) -> Result<String, String> {
-    println!("Starting transcription for: {}", path);
+pub async fn transcribe_chunk(path: String, use_system_proxy: bool, language: Option<String>) -> Result<String, String> {
+    println!("Starting transcription for: {} in language: {}", path, language.as_deref().unwrap_or("fr"));
 
     let output_file = format!("{}.json", path);
-
+    
+    // Set the language to French if none is provided
+    let lang = language.unwrap_or_else(|| "fr".to_string());
+    
     // Call the async transcription function directly without spawning a thread
-    match transcribe_audio_async(&path, &output_file, use_system_proxy).await {
+    match transcribe_audio_async(&path, &output_file, use_system_proxy, &lang).await {
         Ok(_) => {
             println!("Transcription completed successfully for: {}", path);
             // Format the transcription into a readable text file
@@ -36,6 +39,7 @@ pub fn format_transcription_file(path: String) -> Result<String, String> {
         .to_str()
         .unwrap()
         .replace(".json", "")
+        .replace(".wav", "")
         .replace(".mp3", "");
 
     let output_file = format!("{}/{}.txt", trscr_dir.display(), cleared_filename);

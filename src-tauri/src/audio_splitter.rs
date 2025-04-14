@@ -1,10 +1,10 @@
 use mp3_splitter::minutes_to_duration as mp3_minutes_to_duration;
 use mp3_splitter::split_mp3;
 use mp3_splitter::SplitOptions as Mp3SplitOptions;
-use wav_splitter::SplitOptions as WavSplitOptions;
+use std::path::Path;
 use wav_splitter::minutes_to_duration as wav_minutes_to_duration;
 use wav_splitter::split_wav;
-use std::path::Path;
+use wav_splitter::SplitOptions as WavSplitOptions;
 
 /// Ce fichier contient la logique de découpage des fichiers audio  en chunks.
 /// Il utilise les bibliothèques mp3_splitter et wav_splitter pour effectuer le découpage.
@@ -12,12 +12,20 @@ use std::path::Path;
 
 pub fn split_audio_file(
     file_path: &str,
-    split_duration: u64,
+    split_duration_minutes: u64,
     session_name: &str,
 ) -> Result<Vec<String>, String> {
+    // Sanitize the session name first
+    let sanitized_session = sanitize_filename(session_name);
+
     // Get the user's download directory
     let output_dir = crate::get_chunk_directory()?;
     println!("Output directory: {}", output_dir.display());
+
+    // Ensure directory exists
+    std::fs::create_dir_all(&output_dir)
+        .map_err(|e| format!("Failed to create chunk directory: {}", e))?;
+
     // Check if the file is a WAV or MP3 file
     let file_extension = match Path::new(file_path).extension() {
         Some(ext) => ext.to_str().unwrap_or(""),
@@ -33,9 +41,9 @@ pub fn split_audio_file(
     if file_extension == "mp3" {
         let mp3_options = Mp3SplitOptions {
             input_path: Path::new(file_path),
-            chunk_duration: mp3_minutes_to_duration(split_duration), // Convert minutes to Duration
-            output_dir: &output_dir,                                          // Directory to save the chunks
-            prefix: session_name,                                             // Prefix for output files
+            chunk_duration: mp3_minutes_to_duration(split_duration_minutes), // Convert minutes to Duration
+            output_dir: &output_dir,    // Directory to save the chunks
+            prefix: &sanitized_session, // Sanitized prefix for output files
         };
 
         // Perform the mp3 split
@@ -65,9 +73,9 @@ pub fn split_audio_file(
     else {
         let wav_options = WavSplitOptions {
             input_path: Path::new(file_path),
-            chunk_duration: wav_minutes_to_duration(split_duration), // Convert minutes to Duration
-            output_dir: &output_dir,                                          // Directory to save the chunks
-            prefix: session_name,                                              // Prefix for output files
+            chunk_duration: wav_minutes_to_duration(split_duration_minutes), // Convert minutes to Duration
+            output_dir: &output_dir,    // Directory to save the chunks
+            prefix: &sanitized_session, // Sanitized prefix for output files
         };
 
         // Perform the wav split
@@ -120,4 +128,34 @@ pub fn clear_chunks() -> Result<(), String> {
             Err(format!("Error clearing chunks: {}", e))
         }
     }
+}
+
+/// Sanitizes a filename by removing invalid char and replacing path separators
+// Removes all non-alphanumeric characters except _, -, and .
+// Replaces path separators (/ and \) with underscores
+// Ensures a minimum length of 4 characters ("chunk")
+// Limits maximum length to 255 characters
+fn sanitize_filename(input: &str) -> String {
+    let mut sanitized = String::with_capacity(input.len());
+
+    // Allow alphanumeric, underscore, hyphen, and period
+    for c in input.chars() {
+        if c.is_alphanumeric() || c == '_' || c == '-' || c == '.' {
+            sanitized.push(c);
+        }
+        // Replace path separators with underscore
+        else if c == '/' || c == '\\' {
+            sanitized.push('_');
+        }
+    }
+
+    // Truncate to reasonable length : 255 chars bro, enough
+    sanitized.truncate(255);
+
+    // Ensure it's not empty
+    if sanitized.is_empty() {
+        sanitized.push_str("chunk");
+    }
+
+    sanitized
 }

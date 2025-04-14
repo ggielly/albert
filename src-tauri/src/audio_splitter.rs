@@ -12,7 +12,7 @@ use std::path::Path;
 
 pub fn split_audio_file(
     file_path: &str,
-    split_duration: u64,
+    split_duration_minutes: u64,
     session_name: &str,
 ) -> Result<Vec<String>, String> {
     // Get the user's download directory
@@ -33,7 +33,7 @@ pub fn split_audio_file(
     if file_extension == "mp3" {
         let mp3_options = Mp3SplitOptions {
             input_path: Path::new(file_path),
-            chunk_duration: mp3_minutes_to_duration(split_duration), // Convert minutes to Duration
+            chunk_duration: mp3_minutes_to_duration(split_duration_minutes), // Convert minutes to Duration
             output_dir: &output_dir,                                          // Directory to save the chunks
             prefix: session_name,                                             // Prefix for output files
         };
@@ -65,7 +65,7 @@ pub fn split_audio_file(
     else {
         let wav_options = WavSplitOptions {
             input_path: Path::new(file_path),
-            chunk_duration: wav_minutes_to_duration(split_duration), // Convert minutes to Duration
+            chunk_duration: wav_minutes_to_duration(split_duration_minutes), // Convert minutes to Duration
             output_dir: &output_dir,                                          // Directory to save the chunks
             prefix: session_name,                                              // Prefix for output files
         };

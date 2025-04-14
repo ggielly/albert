@@ -36,7 +36,7 @@ pub fn split_audio_file(
     println!("File extension: {}", file_extension);
 
     // stockage des chemins des fichiers créés
-    let mut chunk_paths: Vec<String> = vec![];
+    let mut chunk_paths: Vec<String> = Vec::with_capacity(10); 
 
     // Determine the split options based on the file type
     if file_extension == "mp3" {

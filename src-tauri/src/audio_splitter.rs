@@ -27,13 +27,11 @@ pub fn split_audio_file(
         .map_err(|e| format!("Failed to create chunk directory: {}", e))?;
 
     // Check if the file is a WAV or MP3 file
-    let file_extension = match Path::new(file_path).extension() {
-        Some(ext) => ext.to_str().unwrap_or(""),
-        None => "",
-    };
-
-    let file_extension = file_extension.to_lowercase();
-    let file_extension = file_extension.trim_start_matches('.');
+    let file_extension = Path::new(file_path)
+    .extension()
+    .and_then(|ext| ext.to_str())
+    .unwrap_or("")
+    .to_lowercase();
 
     println!("File extension: {}", file_extension);
 

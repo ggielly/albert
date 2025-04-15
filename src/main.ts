@@ -496,6 +496,8 @@ function terminate(errors: number) {
   // Terminate the Tauri process
   let submitButton = document.getElementById('file-submit-button') as HTMLButtonElement;
   let cancelButton = document.getElementById('file-cancel-button') as HTMLButtonElement;
+  sessionNameInput.value = '';
+  filePathDisplay.innerHTML = 'Aucun fichier sélectionné';
   
   invoke<string>('terminate_transcription', { cancelled: isCancelled })
     .then((response) => {

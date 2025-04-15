@@ -7,7 +7,7 @@ use directories::UserDirs;
 use std::path::{Path, PathBuf};
 
 const CHUNK_DIRECTORY: &str = "audio_chunks";
-const TRANSCRIPTION_DIRECTORY: &str = "transcriptions_albert";
+const TRANSCRIPTION_DIRECTORY: &str = "transcriptions_albertine";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -24,7 +24,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![split_file, send_chunk, terminate_transcription])
+        .invoke_handler(tauri::generate_handler![split_file, send_chunk, terminate_transcription, concat_transcription_files])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -75,6 +75,30 @@ async fn terminate_transcription(cancelled: bool) -> Result<String, String> {
         }
     }
 }
+/// Concats the passed files into a single file
+/// transcription_chunks : Vec<String> vector of paths to the files to be concatenated
+/// output_file : String path to the output file
+/// Returns the path to the concatenated file as String
+#[tauri::command(rename_all = "snake_case")]
+async fn concat_transcription_files(transcription_chunks: Vec<String>, output_file: String) -> Result<String, String> {
+    let transcription_dir = get_transcription_directory()?;
+    let output_file_path = transcription_dir.join(output_file.clone());
+    if output_file_path.exists() {
+        std::fs::remove_file(&output_file_path)
+            .map_err(|e| format!("Failed to remove existing file: {}", e))?;
+    }
+    let mut output = std::fs::File::create(&output_file_path)
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+    for chunk in transcription_chunks {
+        let mut input = std::fs::File::open(chunk)
+            .map_err(|e| format!("Failed to open file: {}", e))?;
+        std::io::copy(&mut input, &mut output)
+            .map_err(|e| format!("Failed to copy file: {}", e))?;
+    }
+    println!("fichier concaténé : {}", output_file_path.display());
+    Ok(output_file)
+}
+
 
 /// Returns the path to the directory where audio chunks will be stored
 pub fn get_chunk_directory() -> Result<PathBuf, String> {
@@ -116,3 +140,5 @@ pub fn get_user_directories() -> Result<UserDirs, String> {
         return Err("User directory not found".to_string());
     };
 }
+
+

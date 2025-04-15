@@ -187,6 +187,9 @@ button:disabled {
 }
 
 .timer-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-top: 0.5rem;
   padding: 0.5rem;
   text-align: center;
@@ -593,6 +596,25 @@ button:disabled {
   }
 }
 
+.fusion-button {
+  background-color: #4CAF50; /* Green */
+  color: white;
+  margin-left: 10px;
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+  transition: background-color 0.3s;
+}
+
+.fusion-button:hover {
+  background-color: #45a049;
+}
+
+.fusion-button:disabled {
+  background-color: #a0a0a0;
+  cursor: not-allowed;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
@@ -629,6 +651,13 @@ button:disabled {
   .version-info,
   .api-status-info {
     border-top-color: #ddd;
+  }
+
+  .fusion-button {
+    background-color: #4CAF50;
+  }
+  .fusion-button:hover {
+    background-color: #45a049;
   }
 }
 

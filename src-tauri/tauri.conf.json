@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "albert",
+  "productName": "albertine",
   "version": "0.3.0",
-  "identifier": "albert.transcription.bousquie.fr",
+  "identifier": "albertine.transcription.bousquie.fr",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Albert",
+        "title": "Albertine",
         "width": 800,
         "height": 1000,
         "resizable": true,

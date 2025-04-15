@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:light-watch": "vite --watch=false && cargo tauri dev"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.4.0",

@@ -14,6 +14,9 @@ import { open as openExternal } from '@tauri-apps/plugin-shell';
 // Default chunk duration (in minutes)
 const CHUNKDURATION = 10;
 
+// Global variable to store the current file path
+let currentFilePath = '';
+
 // Create a sorted list of language codes for the dropdown
 const sortedLanguageCodes = (() => {
   // Preferred languages to appear at the top
@@ -21,6 +24,8 @@ const sortedLanguageCodes = (() => {
     "fr", "en", "es", "de", "it", "nl", "da", "sv", "no", "pt", "pl", "ro", "sk"
   ];
   
+
+
   // Create a map of all languages
   const allLanguages = Object.entries(languageCodes);
   
@@ -31,14 +36,14 @@ const sortedLanguageCodes = (() => {
   
   // Combine preferred languages in order with the alphabetically sorted remaining languages
   return [
-    ...preferredLanguages.map(code => [code, languageCodes[code]]),
+    ...preferredLanguages.map(code => [code, languageCodes[code as keyof typeof languageCodes]]),
     ...remainingLanguages
   ];
 })();
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
-    <h1>ALBERT</h1>
+    <h1>ALBERTINE</h1>
     <div class="input-section">
       <label for="session-name">Nom de la transcription :</label>
       <input type="text" id="session-name" placeholder="ConseilIUT" maxlength="20">
@@ -62,6 +67,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div id="timer-display" class="timer-display">
         <span>Temps écoulé: </span>
         <span id="timer-value">00:00</span>
+        <button id="fusion-button" class="fusion-button" hidden>Fusion</button>
       </div>
     </div>
     
@@ -105,7 +111,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               <p>Le fichier audio va être découpé en plusieurs fichiers audio plus courts avant d'être transmis successivement à Albert, le nom de l'IA de la DINUM, pour transcription. <br>  
               Le temps de traitement d'Albert est d'environ 1 minute par fichier audio de 10 minutes ou encore de 1 minute par tranche de taille de 10 Mo pour un fichier mp3 ou de 100 Mo pour un fichier wav.<br>
               Ainsi, un fichier audio mp3 de 1 heure pourra par exemple être découpé en 6 fichiers audio de 10 minutes et prendra environ 6 minutes à être traité par Albert.<br>
-              Chaque morceau fait l'objet d'une transcription séparée et sera enregistré le répertoire transcription_albert du dossier Documents de votre ordinateur. </p>
+              Chaque morceau fait l'objet d'une transcription séparée et sera enregistré le répertoire transcription_albertine du dossier Documents de votre ordinateur. </p>
             </div>
           </div>
 
@@ -161,6 +167,7 @@ const fileSelectButton = document.getElementById('file-select-button') as HTMLBu
 const filePathDisplay = document.getElementById('file-path-display') as HTMLDivElement;
 const timerValue = document.getElementById('timer-value') as HTMLSpanElement;
 const languageSelect = document.getElementById('transcription-language') as HTMLSelectElement;
+const fusionButton = document.getElementById('fusion-button') as HTMLButtonElement;
 
 // Timer variables
 let timerInterval: number | null = null;
@@ -248,69 +255,83 @@ sessionNameInput.addEventListener('input', () => {
   }
 });
 
-// Handle file selection
-// The call to the Rust function "split_file()" is done in the handleFile function
+// Function to handle the submit button click - defined once for the whole app
+function handleSubmitButtonClick() {
+  const submitButton = document.getElementById('file-submit-button') as HTMLButtonElement;
+  const cancelButton = document.getElementById('file-cancel-button') as HTMLButtonElement;
+  
+  // Reset and start the timer when submitting
+  resetTimer();
+  startTimer();
+  
+  // Disable file drop area and select button
+  disableFileInputs();
+  
+  // Hide submit button and show cancel button
+  submitButton.hidden = true;
+  cancelButton.hidden = false;
+  
+  // Get the validated session name
+  const sessionName = sessionNameInput.value;
+  
+  invoke<string[]>('split_file', { 
+    file_path: currentFilePath,
+    session_name: sessionName,
+    chunk_duration: chunkDuration
+  })
+  .then((response) => {
+    // The Rust response is an array of strings: the paths of the chunks
+    let length = response.length;
+    let msgResponse = 'Découpage du fichier audio en ' + length.toString() + ' morceaux de ' + chunkDuration.toString() + ' minutes maximum :<br><br>';
+    for (let i = 0; i < length; i++) {
+      msgResponse += `${response[i]}<br>`;
+    }
+    logMessage(msgResponse);
+    send_chunks(response, chunkDuration);
+  })
+  .catch((error) => {
+    // Handle any errors that occur during the invocation
+    logMessage('<br>Erreur lors du découpage du fichier audio :<br>' + error);
+    stopTimer(); // Stop timer on error
+    // Reset UI on error
+    submitButton.hidden = false;
+    cancelButton.hidden = true;
+    enableFileInputs();
+  });
+}
+
+// Set up the submit button event handler just once during initialization
+document.addEventListener('DOMContentLoaded', () => {
+  const submitButton = document.getElementById('file-submit-button') as HTMLButtonElement;
+  submitButton.addEventListener('click', handleSubmitButtonClick);
+});
+
+// Simplified handleFile function
 function handleFile(filePath: string) {
   // Reset timer when selecting a new file
   resetTimer();
+  
+  // Store the current file path in the global variable
+  currentFilePath = filePath;
   
   // Get the file name from the path
   const fileName = filePath.split('/').pop() || '';
   const fileExtension = fileName.split('.').pop() || '';
   const validExtensions = ['wav', 'mp3'];
   let submitButton = document.getElementById('file-submit-button') as HTMLButtonElement;
+  
   // Hide the submit button by default  
   submitButton.hidden = true;
   let msg = '';
+  
   // Check if the file extension is valid
   if (!validExtensions.includes(fileExtension)) {
     msg = '<b>Type de fichier non accepté.<p>Sélectionnez svp un fichier audio<br> avec l\'extension .mp3 ou .wav</b>';
   }
   else {
     msg =`<p>Fichier sélectionné :<br><b> ${fileName}</b></p>`;
-    // Show the submit button
+    // Simply show the button - the event listener is already attached
     submitButton.hidden = false;
-    // Add event listener to the submit button
-    submitButton.addEventListener('click', async () => {
-        // Reset and start the timer when submitting
-        resetTimer();
-        startTimer();
-        
-        // Disable file drop area and select button
-        disableFileInputs();
-        
-        // Hide submit button and show cancel button
-        submitButton.hidden = true;
-        document.getElementById('file-cancel-button')!.hidden = false;
-        
-        // Get the validated session name
-        const sessionName = sessionNameInput.value;
-        
-        invoke<string[]>('split_file', { 
-          file_path: filePath,
-          session_name: sessionName,
-          chunk_duration: chunkDuration
-        })
-        .then((response) => {
-          // The Rust response an array of strings
-          let length = response.length;
-          let msgResponse = 'Découpage du fichier audio en ' + length.toString() + ' morceaux de ' + chunkDuration.toString() + ' minutes maximum :<br><br>';
-          for (let i = 0; i < length; i++) {
-            msgResponse += `${response[i]}<br>`;
-          }
-          logMessage(msgResponse);
-          send_chunks(response, chunkDuration);
-        })
-        .catch((error) => {
-          // Handle any errors that occur during the invocation
-          logMessage('<br>Erreur lors du découpage du fichier audio :<br>' + error);
-          stopTimer(); // Stop timer on error
-        }
-        );
-        // Hide the submit button after clicking
-        submitButton.hidden = true;
-    }
-    );
   }
   filePathDisplay.innerHTML = msg;
 }
@@ -409,7 +430,7 @@ function send_chunks(chunks: string[], chunkDuration: number) {
   let minutes = Math.floor(duration);
   let seconds = Math.round((duration - minutes) * 60);
   
-  logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau.<br>Durée totale maximum estimée à environ <b>' + minutes.toString() + '\' ' + '0' + seconds.toString().slice(-2) + '"</b><br>Merci de patienter...<br><br>');
+  logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau.<br>Durée totale maximum estimée à environ <b>' + minutes.toString() + '\' ' + ('0' + seconds.toString()).slice(-2) + '"</b><br>Merci de patienter...<br><br>');
   
   // Process chunks sequentially with their respective delays
   processChunksSequentially(chunks, 0, 0);
@@ -419,7 +440,7 @@ function send_chunks(chunks: string[], chunkDuration: number) {
 // This function will be called recursively
 // to process each chunk sequentially
 async function processChunksSequentially(chunks: string[], index: number, errors: number) {
-  // Check for cancellation
+  // Check for cancellation immediately
   if (isCancelled) {
     logMessage("Transcription annulée par l'utilisateur.");
     return;
@@ -433,37 +454,35 @@ async function processChunksSequentially(chunks: string[], index: number, errors
   
   const path = chunks[index];
   
-  try {
-    const response = await invoke<string>('send_chunk', { 
-      path, 
-      use_system_proxy: useSystemProxy,
-      language: transcriptionLanguage
-    });
-    
-    // Check for cancellation again after processing
-    if (isCancelled) {
-      logMessage("Transcription annulée par l'utilisateur.");
-      return;
-    }
-    
-    const n = index + 1;
-    const msg = `fichier ${n} transcrit : ${response}`;
-    logMessage(msg);
-    
-    // Process the next chunk
-    processChunksSequentially(chunks, index + 1, errors);
-  } catch (error) {
-    // Check for cancellation on error too
-    if (isCancelled) {
-      logMessage("Transcription annulée par l'utilisateur.");
-      return;
-    }
-    
-    logMessage(`Erreur pour le fichier ${index + 1}: ${error}`);
-    
-    // Process the next chunk, but increment the error count
-    processChunksSequentially(chunks, index + 1, errors + 1);
-  }
+  // response is the formatted transcription file path
+  const response = await invoke<string>('send_chunk', { 
+    path, 
+    use_system_proxy: useSystemProxy,
+    language: transcriptionLanguage
+  })
+  .then((response) => {
+      // Check for cancellation again after processing
+      if (isCancelled) {
+        logMessage("Transcription annulée par l'utilisateur.");
+        return;
+      }
+      const n = index + 1;
+      const msg = `fichier ${n} transcrit : ${response}`;
+      addTranscriptionFile(response);
+      logMessage(msg);
+      // Process the next chunk
+      processChunksSequentially(chunks, index + 1, errors);
+    })
+  .catch((error) => {
+      // Check for cancellation on error too
+      if (isCancelled) {
+        logMessage("Transcription annulée par l'utilisateur.");
+        return;
+      }
+      logMessage(`Erreur pour le fichier ${index + 1}: ${error}`);
+      // Process the next chunk, but increment the error count
+      processChunksSequentially(chunks, index + 1, errors + 1);
+  });
 }
 
 function terminate(errors: number) {
@@ -486,6 +505,22 @@ function terminate(errors: number) {
       submitButton.hidden = false;
       stopTimer();
       enableFileInputs();
+      
+      // Show fusion button only if transcription was successful and not cancelled
+      // and we have at least 2 transcription files
+      if (!isCancelled && transcriptionFiles.length >= 2) {
+        fusionButton.hidden = false;
+      } else {
+        fusionButton.hidden = true;
+      }
+      
+      // Reset the current file path when transcription is over
+      currentFilePath = '';
+      
+      // Don't reset transcription files yet - they're needed for the fusion
+      if (isCancelled) {
+        resetTranscriptionFiles();
+      }
     })
     .catch((error) => {
       logMessage('Erreur lors de la suppression des fichiers temporaires : ' + error);
@@ -494,6 +529,11 @@ function terminate(errors: number) {
       submitButton.hidden = false;
       stopTimer();
       enableFileInputs();
+      fusionButton.hidden = true;
+      resetTranscriptionFiles();
+      
+      // Reset the current file path on error too
+      currentFilePath = '';
     });
 }
 
@@ -562,6 +602,44 @@ fileSelectButton.addEventListener('click', async (_event) => {
   }
 });
 
+/// Traitement par Tauri de la concaténation des fichiers de transcription
+async function concatFiles(files: string[], sessionName: string) {
+  try {
+    // Show a loading message
+    logMessage("Fusion des transcriptions en cours...");
+    
+    // Disable the fusion button during processing
+    fusionButton.disabled = true;
+    
+    // Invoke the Rust function to concatenate the files
+    const outputFile = await invoke<string>('concat_transcription_files', { 
+      transcription_chunks: files, 
+      output_file: `${sessionName}_complete.txt` 
+    });
+    
+    // Show success message
+    logMessage(`Fusion terminée. Fichier complet créé : ${outputFile}`);
+    
+    // Hide the fusion button after successful operation
+    fusionButton.hidden = true;
+    
+    // Now we can reset the transcription files
+    resetTranscriptionFiles();
+  } catch (error) {
+    // Show error message
+    logMessage(`Erreur lors de la fusion des transcriptions : ${error}`);
+    
+    // Re-enable the button to allow retry
+    fusionButton.disabled = false;
+  }
+}
+
+// Add event listener for the fusion button
+fusionButton.addEventListener('click', () => {
+  const sessionName = sessionNameInput.value;
+  concatFiles(transcriptionFiles, sessionName);
+});
+
 // Settings panel functionality
 const settingsPanel = document.getElementById('settings-panel') as HTMLDivElement;
 const settingsTab = document.getElementById('settings-tab') as HTMLDivElement;
@@ -574,6 +652,7 @@ const noProxyCheckbox = document.getElementById('no-proxy') as HTMLInputElement;
 let useSystemProxy = true;
 let chunkDuration = parseInt(chunkDurationSlider.value);
 let transcriptionLanguage = languageSelect.value; // Default: 'fr' (Français)
+let transcriptionFiles = [];
 
 // Function to handle slider change
 function handleChunkDurationChange() {
@@ -584,7 +663,7 @@ function handleChunkDurationChange() {
 // Function to handle language selection change
 function handleLanguageChange() {
   transcriptionLanguage = languageSelect.value;
-  console.log(`Transcription language set to: ${transcriptionLanguage} (${languageCodes[transcriptionLanguage]})`);
+  console.log(`Transcription language set to: ${transcriptionLanguage} (${languageCodes[transcriptionLanguage as keyof typeof languageCodes]})`);
 }
 
 // Function to handle checkbox change
@@ -610,6 +689,18 @@ function closeSettingsPanel() {
     settingsTab.style.pointerEvents = 'auto';
   }, 300); // Match transition duration
 }
+
+// Function to reser the transcription files array
+function resetTranscriptionFiles() {
+  transcriptionFiles = [];
+}
+
+// Function to add a transcription file to the array
+function addTranscriptionFile(filePath: string) {
+  transcriptionFiles.push(filePath);
+}
+
+
 
 // Event listeners for settings panel
 settingsTab.addEventListener('click', openSettingsPanel);

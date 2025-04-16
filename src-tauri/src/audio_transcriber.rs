@@ -4,7 +4,7 @@ use transcription_albert::{format_transcription, transcribe_audio_async};
 
 /// Transcribe a chunk of audio
 /// Returns the path to the transcription file after formatting in Ok(String)
-pub async fn transcribe_chunk(path: String, use_system_proxy: bool, language: Option<String>) -> Result<String, String> {
+pub async fn transcribe_chunk(path: String, use_system_proxy: bool, language: Option<String>, label: Option<String>) -> Result<String, String> {
     println!("Starting transcription for: {} in language: {}", path, language.as_deref().unwrap_or("fr"));
 
     let output_file = format!("{}.json", path);
@@ -18,7 +18,7 @@ pub async fn transcribe_chunk(path: String, use_system_proxy: bool, language: Op
     println!("Transcription completed successfully for: {}", path);
     
     // Format the transcription
-    let formatted_path = format_transcription_file(output_file)?;
+    let formatted_path = format_transcription_file(output_file, label)?;
     println!("Transcription formatted successfully: {}", formatted_path);
     
     Ok(formatted_path)
@@ -26,7 +26,7 @@ pub async fn transcribe_chunk(path: String, use_system_proxy: bool, language: Op
 
 
 // Returns the path of the formatted transcription file in Ok(String)
-pub fn format_transcription_file(path: String) -> Result<String, String> {
+pub fn format_transcription_file(path: String, label: Option<String>) -> Result<String, String> {
     let trscr_dir = crate::get_transcription_directory()?;
     let filename = Path::new(&path).file_name().unwrap(); // on est sûr ici que le nom de fichier est valide
     let cleared_filename = filename
@@ -35,9 +35,7 @@ pub fn format_transcription_file(path: String) -> Result<String, String> {
         .replace(".json", "")
         .replace(".wav", "")
         .replace(".mp3", "");
-
     let output_file = format!("{}/{}.txt", trscr_dir.display(), cleared_filename);
-    format_transcription(&path, &output_file);
-
+    format_transcription(&path, &output_file, label.as_deref());
     Ok(output_file)
 }

@@ -1,6 +1,8 @@
 // Required modules :
 // cargo tauri add shell
 // cargo tauri add @tauri-apps/api/core
+// cargo tauri add process
+// pnpm tauri add process
 
 import './style.css'
 import './code_lang.ts'
@@ -10,6 +12,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from '@tauri-apps/plugin-dialog';
 import { open as openExternal } from '@tauri-apps/plugin-shell';
+import { exit, relaunch } from '@tauri-apps/plugin-process';
 
 // Default chunk duration (in minutes)
 const CHUNKDURATION = 10;
@@ -152,6 +155,38 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
         </div>
         <div class="version-info">
           <p>v0.3.0</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Reset Panel -->
+    <div id="reset-panel" class="settings-panel">
+      <div id="reset-tab" class="settings-tab" style="top: 140px;">
+        <img src="/assets/refresh-arrow.png" alt="Reset" />
+      </div>
+      <div class="settings-content">
+        <div class="settings-header">
+          <h2>Réinitialisation</h2>
+          <button id="close-reset" class="close-settings">
+            <img src="/assets/fleche-droite.png" alt="Close" />
+          </button>
+        </div>
+        <p class="reset-warning"><b>En cliquant sur l'un des boutons,<br>vous confirmez que vous voulez directement</b></p>
+        <div class="settings-body">
+          <div class="reset-options-container">
+            <div class="reset-option">
+              <div class="reset-icon-container">
+                <img src="/assets/power-switch.png" alt="Quitter" class="reset-icon">
+              </div>
+              <div class="reset-label">QUITTER</div>
+            </div>
+            <div class="reset-option">
+              <div class="reset-icon-container">
+                <img src="/assets/refresh-arrow.png" alt="Réinitialiser" class="reset-icon">
+              </div>
+              <div class="reset-label">RÉINITIALISER</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -304,6 +339,27 @@ function handleSubmitButtonClick() {
 document.addEventListener('DOMContentLoaded', () => {
   const submitButton = document.getElementById('file-submit-button') as HTMLButtonElement;
   submitButton.addEventListener('click', handleSubmitButtonClick);
+
+  // No dynamic positioning of reset tab - using fixed position in inline style
+
+  // Get the reset option elements
+  const quitOption = document.querySelector('.reset-option:nth-child(1)') as HTMLDivElement;
+  const resetOption = document.querySelector('.reset-option:nth-child(2)') as HTMLDivElement;
+  
+  // Add event listeners to the reset options
+  if (quitOption) {
+    quitOption.addEventListener('click', async () => {
+      console.log('Quitting application...');
+      await quitApp();
+    });
+  }
+  
+  if (resetOption) {
+    resetOption.addEventListener('click', async () => {
+      console.log('Restarting application...');
+      await resetApp();
+    });
+  }
 });
 
 // Simplified handleFile function
@@ -456,7 +512,7 @@ async function processChunksSequentially(chunks: string[], index: number, errors
   const label = "Audio de " + (index * chunkDuration).toString() + " à " + ((index + 1) * chunkDuration).toString() + " minutes";
   
   // response is the formatted transcription file path
-  const response = await invoke<string>('send_chunk', { 
+  await invoke<string>('send_chunk', { 
     path, 
     use_system_proxy: useSystemProxy,
     language: transcriptionLanguage,
@@ -639,6 +695,16 @@ async function concatFiles(files: string[], sessionName: string) {
   }
 }
 
+// Traitement par Tauri du reset de l'application
+async function resetApp() {
+  await relaunch();
+}
+
+// Traitement par Tauri de la fermeture de l'application
+async function quitApp() {
+  await exit(0);
+}
+
 // Add event listener for the fusion button
 fusionButton.addEventListener('click', () => {
   concatFiles(transcriptionFiles, lastSessionName);
@@ -651,6 +717,11 @@ const closeSettings = document.getElementById('close-settings') as HTMLButtonEle
 const chunkDurationSlider = document.getElementById('chunk-duration') as HTMLInputElement;
 const chunkDurationValue = document.getElementById('chunk-duration-value') as HTMLDivElement;
 const noProxyCheckbox = document.getElementById('no-proxy') as HTMLInputElement;
+
+// Reset panel elements
+const resetPanel = document.getElementById('reset-panel') as HTMLDivElement;
+const resetTab = document.getElementById('reset-tab') as HTMLDivElement;
+const closeReset = document.getElementById('close-reset') as HTMLButtonElement;
 
 // Settings global variables
 let useSystemProxy = true;
@@ -680,6 +751,9 @@ function handleProxyChange() {
 // Function to open settings panel
 function openSettingsPanel() {
   settingsPanel.classList.add('open');
+  // Hide reset tab when settings panel is open
+  resetTab.style.opacity = '0';
+  resetTab.style.pointerEvents = 'none';
   // Tab will be hidden via CSS
 }
 
@@ -690,6 +764,31 @@ function closeSettingsPanel() {
   // Make tab visible again after transition completes
   setTimeout(() => {
     // This ensures the tab is fully visible after the panel is hidden
+    settingsTab.style.opacity = '1';
+    settingsTab.style.pointerEvents = 'auto';
+    // Make reset tab visible again
+    resetTab.style.opacity = '1';
+    resetTab.style.pointerEvents = 'auto';
+  }, 300); // Match transition duration
+}
+
+// Function to open reset panel
+function openResetPanel() {
+  resetPanel.classList.add('open');
+  // Hide settings tab when reset panel is open
+  settingsTab.style.opacity = '0';
+  settingsTab.style.pointerEvents = 'none';
+}
+
+// Function to close reset panel
+function closeResetPanel() {
+  resetPanel.classList.remove('open');
+  
+  // Make tabs visible again after transition completes
+  setTimeout(() => {
+    // Ensure both tabs are fully visible after the panel is hidden
+    resetTab.style.opacity = '1';
+    resetTab.style.pointerEvents = 'auto';
     settingsTab.style.opacity = '1';
     settingsTab.style.pointerEvents = 'auto';
   }, 300); // Match transition duration
@@ -705,14 +804,16 @@ function addTranscriptionFile(filePath: string) {
   transcriptionFiles.push(filePath);
 }
 
-
-
 // Event listeners for settings panel
 settingsTab.addEventListener('click', openSettingsPanel);
 closeSettings.addEventListener('click', closeSettingsPanel);
 chunkDurationSlider.addEventListener('input', handleChunkDurationChange);
 languageSelect.addEventListener('change', handleLanguageChange);
 noProxyCheckbox.addEventListener('change', handleProxyChange);
+
+// Event listeners for reset panel
+resetTab.addEventListener('click', openResetPanel);
+closeReset.addEventListener('click', closeResetPanel);
 
 // Add event listener for API status link to open in system browser
 document.getElementById('api-status-link')?.addEventListener('click', async (e) => {

@@ -30,4 +30,5 @@ mp3_splitter = { git = "https://github.com/jbousquie/mp3_splitter.git" }
 wav_splitter = { git = "https://github.com/jbousquie/wav_splitter.git" }
 transcription_albert = { git = "https://github.com/jbousquie/transcription_albert.git" }
 tauri-plugin-shell = "2"
+tauri-plugin-process = "2"
 

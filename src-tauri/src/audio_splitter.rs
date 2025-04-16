@@ -28,15 +28,15 @@ pub fn split_audio_file(
 
     // Check if the file is a WAV or MP3 file
     let file_extension = Path::new(file_path)
-    .extension()
-    .and_then(|ext| ext.to_str())
-    .unwrap_or("")
-    .to_lowercase();
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("")
+        .to_lowercase();
 
     println!("File extension: {}", file_extension);
 
     // stockage des chemins des fichiers créés
-    let mut chunk_paths: Vec<String> = Vec::with_capacity(10); 
+    let mut chunk_paths: Vec<String> = Vec::with_capacity(10);
 
     // Determine the split options based on the file type
     if file_extension == "mp3" {

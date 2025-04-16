@@ -114,7 +114,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               <p>Le fichier audio va être découpé en plusieurs fichiers audio plus courts avant d'être transmis successivement à Albert, le nom de l'IA de la DINUM, pour transcription. <br>  
               Le temps de traitement d'Albert est d'environ 1 minute par fichier audio de 10 minutes ou encore de 1 minute par tranche de taille de 10 Mo pour un fichier mp3 ou de 100 Mo pour un fichier wav.<br>
               Ainsi, un fichier audio mp3 de 1 heure pourra par exemple être découpé en 6 fichiers audio de 10 minutes et prendra environ 6 minutes à être traité par Albert.<br>
-              Chaque morceau fait l'objet d'une transcription séparée et sera enregistré le répertoire transcription_albertine du dossier Documents de votre ordinateur. </p>
+              Chaque morceau fait l'objet d'une transcription séparée et sera enregistré le répertoire transcription_albertine du dossier Documents de votre ordinateur. Il est possible de fusionner les fichiers de chacune des parties en un seul fichier à la fin.</p>
             </div>
           </div>
 
@@ -129,7 +129,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               </select>
             </div>
             <div class="language-info">
-              <p>Sélectionnez la langue de l'audio à transcrire. Par défaut, la langue est le français.</p>
+              <p>Sélectionnez la langue principalement parlée dans le fichier audio à transcrire.</p>
             </div>
           </div>
 
@@ -154,7 +154,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           <p>État actuel des services Albert : <a href="#" id="api-status-link">Consulter</a></p>
         </div>
         <div class="version-info">
-          <p>v0.3.0</p>
+          <p>v0.3.1</p>
         </div>
       </div>
     </div>

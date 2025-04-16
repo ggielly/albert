@@ -67,7 +67,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div id="timer-display" class="timer-display">
         <span>Temps écoulé: </span>
         <span id="timer-value">00:00</span>
-        <button id="fusion-button" class="fusion-button" hidden>Fusion</button>
+        <button id="fusion-button" class="fusion-button" title="Fusionner les différents morceaux de la transcriptions en un seul fichier global" hidden>Fusion</button>
       </div>
     </div>
     
@@ -496,6 +496,7 @@ function terminate(errors: number) {
   // Terminate the Tauri process
   let submitButton = document.getElementById('file-submit-button') as HTMLButtonElement;
   let cancelButton = document.getElementById('file-cancel-button') as HTMLButtonElement;
+  lastSessionName = sessionNameInput.value;
   sessionNameInput.value = '';
   filePathDisplay.innerHTML = 'Aucun fichier sélectionné';
   
@@ -616,7 +617,7 @@ async function concatFiles(files: string[], sessionName: string) {
     // Invoke the Rust function to concatenate the files
     const outputFile = await invoke<string>('concat_transcription_files', { 
       transcription_chunks: files, 
-      output_file: `${sessionName}_complete.txt` 
+      output_file: `${sessionName}_entier.txt` 
     });
     
     // Show success message
@@ -638,8 +639,7 @@ async function concatFiles(files: string[], sessionName: string) {
 
 // Add event listener for the fusion button
 fusionButton.addEventListener('click', () => {
-  const sessionName = sessionNameInput.value;
-  concatFiles(transcriptionFiles, sessionName);
+  concatFiles(transcriptionFiles, lastSessionName);
 });
 
 // Settings panel functionality
@@ -654,7 +654,8 @@ const noProxyCheckbox = document.getElementById('no-proxy') as HTMLInputElement;
 let useSystemProxy = true;
 let chunkDuration = parseInt(chunkDurationSlider.value);
 let transcriptionLanguage = languageSelect.value; // Default: 'fr' (Français)
-let transcriptionFiles = [];
+let transcriptionFiles: string[] = [];
+let lastSessionName = "";
 
 // Function to handle slider change
 function handleChunkDurationChange() {

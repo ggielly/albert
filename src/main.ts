@@ -430,7 +430,7 @@ function send_chunks(chunks: string[], chunkDuration: number) {
   let minutes = Math.floor(duration);
   let seconds = Math.round((duration - minutes) * 60);
   
-  logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Cette opération peut durer jusqu`à plus d\'une minute par morceau.<br>Durée totale maximum estimée à environ <b>' + minutes.toString() + '\' ' + ('0' + seconds.toString()).slice(-2) + '"</b><br>Merci de patienter...<br><br>');
+  logMessage('<br>Envoi des ' + length.toString() + ' morceaux successivement à Albert pour transcription.<br>Durée totale <i>maximum</i> estimée à environ <b>' + minutes.toString() + '\' ' + ('0' + seconds.toString()).slice(-2) + '"</b><br>Merci de patienter...<br><br>');
   
   // Process chunks sequentially with their respective delays
   processChunksSequentially(chunks, 0, 0);
@@ -453,12 +453,14 @@ async function processChunksSequentially(chunks: string[], index: number, errors
   }
   
   const path = chunks[index];
+  const label = "Audio de " + (index * chunkDuration).toString() + " à " + ((index + 1) * chunkDuration).toString() + " minutes";
   
   // response is the formatted transcription file path
   const response = await invoke<string>('send_chunk', { 
     path, 
     use_system_proxy: useSystemProxy,
-    language: transcriptionLanguage
+    language: transcriptionLanguage,
+    label: label
   })
   .then((response) => {
       // Check for cancellation again after processing
@@ -497,7 +499,7 @@ function terminate(errors: number) {
   let submitButton = document.getElementById('file-submit-button') as HTMLButtonElement;
   let cancelButton = document.getElementById('file-cancel-button') as HTMLButtonElement;
   lastSessionName = sessionNameInput.value;
-  sessionNameInput.value = '';
+  if (!isCancelled) { sessionNameInput.value = '' } else { sessionNameInput.focus(); };
   filePathDisplay.innerHTML = 'Aucun fichier sélectionné';
   
   invoke<string>('terminate_transcription', { cancelled: isCancelled })

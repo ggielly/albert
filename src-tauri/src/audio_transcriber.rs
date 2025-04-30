@@ -1,10 +1,13 @@
 use std::path::Path;
-use transcription_albert::{format_transcription, transcribe_audio_async};
+use transcription_albert::{
+    download_encrypted_api_key, format_transcription, transcribe_audio_async,
+};
 
 /// Transcribe a chunk of audio
 /// Returns the path to the transcription file after formatting in Ok(String)
 pub async fn transcribe_chunk(
     path: String,
+    keypath: String,
     use_system_proxy: bool,
     language: Option<String>,
     label: Option<String>,
@@ -19,7 +22,7 @@ pub async fn transcribe_chunk(
     let lang = language.unwrap_or_else(|| "fr".to_string());
 
     // Use ? operator to propagate errors
-    transcribe_audio_async(&path, &output_file, use_system_proxy, &lang)
+    transcribe_audio_async(&path, &output_file, &keypath, use_system_proxy, &lang)
         .await
         .map_err(|e| format!("Error during transcription: {} for {}", e, path))?;
 
@@ -45,4 +48,13 @@ pub fn format_transcription_file(path: String, label: Option<String>) -> Result<
     let output_file = format!("{}/{}.txt", trscr_dir.display(), cleared_filename);
     format_transcription(&path, &output_file, label.as_deref());
     Ok(output_file)
+}
+
+// Download the encrypted API key from the server
+pub async fn download_key() {
+    if let Ok(filename) = crate::get_keypath() {
+        download_encrypted_api_key(&filename).await;
+    } else {
+        println!("Fichier de clé non trouvé");
+    }
 }

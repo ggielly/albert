@@ -2,12 +2,14 @@ mod audio_splitter;
 mod audio_transcriber;
 use audio_splitter::clear_chunks;
 use audio_splitter::split_audio_file;
+use audio_transcriber::download_key;
 use audio_transcriber::transcribe_chunk;
 use directories::UserDirs;
 use std::path::{Path, PathBuf};
 
 const CHUNK_DIRECTORY: &str = "audio_chunks";
 const TRANSCRIPTION_DIRECTORY: &str = "transcriptions_albertine";
+const KEY_FILE: &str = "albertine.key";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -29,7 +31,8 @@ pub fn run() {
             split_file,
             send_chunk,
             terminate_transcription,
-            concat_transcription_files
+            concat_transcription_files,
+            download_api_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -62,8 +65,9 @@ async fn send_chunk(
     language: Option<String>,
     label: Option<String>,
 ) -> Result<String, String> {
+    let keypath = get_keypath().unwrap();
     // Call the transcribe_chunk function from audio_transcriber
-    let transcription = transcribe_chunk(path, use_system_proxy, language, label).await?;
+    let transcription = transcribe_chunk(path, keypath, use_system_proxy, language, label).await?;
     Ok(transcription)
 }
 
@@ -111,6 +115,25 @@ async fn concat_transcription_files(
     }
     println!("fichier concaténé : {}", output_file_path.display());
     Ok(output_file)
+}
+/// Downloads the API Key
+#[tauri::command(rename_all = "snake_case")]
+async fn download_api_key() {
+    download_key().await;
+}
+
+/// Returns the path to the crypted API key file
+pub fn get_keypath() -> Result<String, String> {
+    let usr_dirs = get_user_directories()?;
+    let key_dir: &Path;
+    if let Some(download_dir) = usr_dirs.download_dir() {
+        key_dir = download_dir;
+    } else {
+        return Err("Dowload directory not found".to_string());
+    };
+
+    let keypath = key_dir.join(KEY_FILE);
+    Ok(keypath.display().to_string())
 }
 
 /// Returns the path to the directory where audio chunks will be stored

@@ -3,9 +3,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: #0d2942;
+  background-color: #fffcf5;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,11 +15,11 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: #4a5fad;
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: #363f77;
 }
 
 body {
@@ -30,9 +30,22 @@ body {
   min-height: 100vh;
 }
 
+/* Logo styling */
+.logo-container {
+  margin: 20px auto;
+  text-align: center;
+}
+
+.logo {
+  height: auto;
+  width: 360px; 
+  max-width: 100%;
+  margin: -120px auto;
+}
+
+/* If there's already h1 styling, we can remove or adjust it since we're replacing the h1 */
 h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  display: none; /* Hide any existing h1 elements if they exist elsewhere */
 }
 
 #app {
@@ -53,12 +66,14 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #e5e0d8;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s;
+  color: #0d2942;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: #363f77;
+  background-color: #f0ece5;
 }
 button:focus,
 button:focus-visible {
@@ -170,12 +185,12 @@ button:disabled {
 #log-message {
   margin-top: 1rem;
   padding: 0.5rem;
-  background-color: #f5f5f5;
+  background-color: #f5f2e9;
   border-radius: 4px;
   max-height: 12rem; /* Approximately 8 lines of text */
   overflow-y: auto; /* Enable vertical scrolling */
   text-align: left; /* Left-align text */
-  border: 1px solid #ccc;
+  border: 1px solid #e0dbd4;
   font-family: monospace;
   font-size: 0.9rem;
   line-height: 1.5;
@@ -200,11 +215,11 @@ button:disabled {
 }
 
 #timer-value {
-  background-color: #f0f0f0;
+  background-color: #f5f2e9;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   margin-left: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid #e0dbd4;
   box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -230,13 +245,13 @@ button:disabled {
   top: 80px;
   width: 48px;
   height: 48px;
-  background-color: #1a1a1a;
+  background-color: #e5e0d8;
   border-radius: 8px 0 0 8px;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  border: 1px solid #444;
+  border: 1px solid #d3cec7;
   border-right: none;
   box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
   z-index: 1001; /* Ensure tab stays above other elements */
@@ -256,7 +271,7 @@ button:disabled {
 .settings-content {
   width: 100%;
   height: 100%;
-  background-color: #2a2a2a;
+  background-color: #fffcf5;
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
@@ -268,7 +283,7 @@ button:disabled {
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid #e0dbd4;
 }
 
 .settings-header h2 {
@@ -297,9 +312,9 @@ button:disabled {
 .version-info {
   text-align: center;
   padding: 0.5rem;
-  border-top: 1px solid #444;
+  border-top: 1px solid #e0dbd4;
   font-size: 0.8rem;
-  color: #888;
+  color: #6b7280;
 }
 
 .version-info p {
@@ -310,7 +325,7 @@ button:disabled {
 .api-status-info {
   text-align: center;
   padding: 0.5rem;
-  border-top: 1px solid #444;
+  border-top: 1px solid #e0dbd4;
   font-size: 0.9rem;
 }
 
@@ -319,13 +334,14 @@ button:disabled {
 }
 
 .api-status-info a {
-  color: #0080ff;
+  color: #4a5fad;
   text-decoration: none;
   font-weight: bold;
 }
 
 .api-status-info a:hover {
   text-decoration: underline;
+  color: #363f77;
 }
 
 /* Settings items */
@@ -354,12 +370,11 @@ button:disabled {
 .slider-value {
   min-width: 2rem;
   padding: 0.25rem 0.5rem;
-  background-color: #444;
+  background-color: #e5e0d8;
   border-radius: 4px;
   text-align: center;
   font-weight: bold;
   margin-left: 10px; /* Add space between label and value */
-  /* Remove the absolute positioning that was causing issues */
   position: static;
   transform: none;
 }
@@ -381,7 +396,7 @@ button:disabled {
   height: 8px;
   -webkit-appearance: none;
   appearance: none;
-  background: #555;
+  background: #e0dbd4;
   outline: none;
   border-radius: 4px;
 }
@@ -392,7 +407,7 @@ button:disabled {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #0080ff;
+  background: #4a5fad;
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -401,18 +416,18 @@ button:disabled {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #0080ff;
+  background: #4a5fad;
   cursor: pointer;
   border: none;
   transition: background 0.2s;
 }
 
 .slider::-webkit-slider-thumb:hover {
-  background: #0066cc;
+  background: #363f77;
 }
 
 .slider::-moz-range-thumb:hover {
-  background: #0066cc;
+  background: #363f77;
 }
 
 .slider-ticks {
@@ -450,11 +465,12 @@ button:disabled {
 
 /* Added styles for info sections */
 .chunk-duration-info,
-.checkbox-info {
+.checkbox-info,
+.language-info {
   text-align: left;
   margin-top: 1rem;
   padding: 0.5rem;
-  background-color: rgba(128, 128, 128, 0.1);
+  background-color: rgba(225, 220, 215, 0.3);
   border-radius: 4px;
   font-size: 0.9rem;
 }
@@ -521,26 +537,6 @@ button:disabled {
   background-color: #0066cc;
 }
 
-/* Dark mode adjustments for dialog */
-@media (prefers-color-scheme: dark) {
-  .dialog-box {
-    background-color: #333;
-    color: rgba(255, 255, 255, 0.87);
-  }
-  
-  .dialog-button {
-    background-color: #444;
-    border-color: #555;
-    color: rgba(255, 255, 255, 0.87);
-  }
-  
-  .dialog-button:hover {
-    background-color: #555;
-  }
-
-  /* Keep the primary button colors the same for both themes */
-}
-
 /* Language select styles */
 .select-container {
   position: relative;
@@ -555,10 +551,10 @@ button:disabled {
   width: 100%;
   padding: 8px 12px;
   font-size: 16px;
-  border: 1px solid #444;
+  border: 1px solid #d3cec7;
   border-radius: 4px;
-  background-color: #333;
-  color: #fff;
+  background-color: #fffcf5;
+  color: #0d2942;
   appearance: none;
   cursor: pointer;
 }
@@ -577,7 +573,7 @@ button:disabled {
   text-align: left;
   margin-top: 0.5rem;
   padding: 0.5rem;
-  background-color: rgba(128, 128, 128, 0.1);
+  background-color: rgba(225, 220, 215, 0.3);
   border-radius: 4px;
   font-size: 0.9rem;
 }
@@ -585,15 +581,6 @@ button:disabled {
 .language-info p {
   margin: 0.5rem 0;
   line-height: 1.4;
-}
-
-/* Light mode styles for language select */
-@media (prefers-color-scheme: light) {
-  .language-select {
-    background-color: #fff;
-    color: #333;
-    border-color: #ddd;
-  }
 }
 
 .fusion-button {
@@ -615,63 +602,6 @@ button:disabled {
   cursor: not-allowed;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-  .settings-tab {
-    background-color: #f0f0f0;
-    border-color: #ddd;
-  }
-  
-  .settings-content {
-    background-color: #ffffff;
-  }
-  
-  .settings-header {
-    border-bottom-color: #ddd;
-  }
-  
-  .slider {
-    background: #ddd;
-  }
-  
-  .slider-value {
-    background-color: #f0f0f0;
-    border: 1px solid #ddd;
-  }
-  
-  .version-info,
-  .api-status-info {
-    border-top-color: #ddd;
-  }
-
-  .fusion-button {
-    background-color: #4CAF50;
-  }
-  .fusion-button:hover {
-    background-color: #45a049;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  #log-message {
-    background-color: #2a2a2a;
-    border-color: #444;
-  }
-  #timer-value {
-    background-color: #333;
-    border-color: #555;
-  }
-}
-
 /* Reset Tab and Panel Styles */
 .reset-tab {
   position: absolute;
@@ -679,7 +609,7 @@ button:disabled {
   right: 0;
   width: 50px;
   height: 50px;
-  background-color: #f0f0f0;
+  background-color: #e5e0d8;
   border-radius: 8px 0 0 8px;
   display: flex;
   align-items: center;
@@ -736,45 +666,6 @@ button:disabled {
 }
 
 .reset-option:hover {
-  background-color: rgba(128, 128, 128, 0.2);
+  background-color: #f0ece5;
   transform: scale(1.05);
-}
-
-.reset-icon-container {
-  width: 80px;
-  height: 80px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.reset-icon {
-  width: 100%;
-  height: auto;
-  max-height: 80px;
-  object-fit: contain;
-}
-
-.reset-label {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-top: 10px;
-}
-
-/* Light/dark mode adjustments */
-@media (prefers-color-scheme: light) {
-  /* ...existing light mode styles... */
-  
-  .reset-option:hover {
-    background-color: rgba(0, 0, 0, 0.1);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  /* ...existing dark mode styles... */
-  
-  .reset-option:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
 }

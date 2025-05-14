@@ -15,7 +15,7 @@ import { open as openExternal } from "@tauri-apps/plugin-shell";
 import { exit, relaunch } from "@tauri-apps/plugin-process";
 
 // Version number
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 
 // Default chunk duration (in minutes)
 const CHUNKDURATION = 10;
@@ -62,7 +62,9 @@ const sortedLanguageCodes = (() => {
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div>
-    <h1>ALBERTINE</h1>
+    <div class="logo-container">
+      <img src="/assets/logo.png" alt="Albertine" class="logo" />
+    </div>
     <div class="input-section">
       <label for="session-name">Nom de la transcription :</label>
       <input type="text" id="session-name" placeholder="ConseilIUT" maxlength="20">

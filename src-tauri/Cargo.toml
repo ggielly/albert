@@ -1,6 +1,6 @@
 [package]
 name = "albertine"
-version = "0.5.0"
+version = "0.5.1"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -25,7 +25,7 @@ tauri = { version = "2.4.1", features = [] }
 tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-dialog = "2"   
 directories = "6.0"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1.45.0", features = ["full"] }
 mp3_splitter = { git = "https://github.com/jbousquie/mp3_splitter.git" }
 wav_splitter = { git = "https://github.com/jbousquie/wav_splitter.git" }
 transcription_albert = { git = "https://github.com/jbousquie/transcription_albert.git" }

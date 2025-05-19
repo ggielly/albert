@@ -15,7 +15,7 @@ import { open as openExternal } from "@tauri-apps/plugin-shell";
 import { exit, relaunch } from "@tauri-apps/plugin-process";
 
 // Version number
-const VERSION = "0.5.0";
+const VERSION = "0.5.1";
 
 // Default chunk duration (in minutes)
 const CHUNKDURATION = 10;
@@ -430,7 +430,7 @@ function handleFile(filePath: string) {
   // Get the file name from the path
   const fileName = filePath.split("/").pop() || "";
   const fileExtension = fileName.split(".").pop() || "";
-  const validExtensions = ["wav", "mp3"];
+  const validExtensions = ["wav", "WAV", "mp3", "MP3"];
   let submitButton = document.getElementById(
     "file-submit-button",
   ) as HTMLButtonElement;
@@ -741,7 +741,7 @@ fileSelectButton.addEventListener("click", async (_event) => {
     filters: [
       {
         name: "Audio Files",
-        extensions: ["mp3", "wav"],
+        extensions: ["mp3", "MP3", "wav", "WAV"],
       },
     ],
   });

@@ -15,7 +15,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { open as openExternal } from "@tauri-apps/plugin-shell";
 import { exit, relaunch } from "@tauri-apps/plugin-process";
-import { load } from '@tauri-apps/plugin-store';
+import { load, Store } from '@tauri-apps/plugin-store';
 
 // Version number
 const VERSION = "0.5.2";
@@ -24,7 +24,7 @@ const VERSION = "0.5.2";
 const CHUNKDURATION = 10;
 
 // Global variables for settings with defaults that will be updated by loadSettings()
-let store;
+let store: Store;
 let storedChunkDuration = CHUNKDURATION;
 let storedLanguage = "fr";
 let storedNoProxy = false;

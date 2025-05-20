@@ -3,6 +3,8 @@
 // cargo tauri add @tauri-apps/api/core
 // cargo tauri add process
 // pnpm tauri add process
+// pnpm tauri add store
+
 
 import "./style.css";
 import "./code_lang.ts";
@@ -13,12 +15,19 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { open as openExternal } from "@tauri-apps/plugin-shell";
 import { exit, relaunch } from "@tauri-apps/plugin-process";
+import { load } from '@tauri-apps/plugin-store';
+
 
 // Version number
-const VERSION = "0.5.1";
+const VERSION = "0.5.2";
 
 // Default chunk duration (in minutes)
 const CHUNKDURATION = 10;
+// Stored values
+const store = await load('store.json');
+let storedChunkDuration = await store.get<number>('chunk_duration') || CHUNKDURATION;
+let storedLanguage = await store.get<string>('language') || "fr";
+let storedNoProxy = await store.get<boolean>('no_proxy') || false
 
 // Global variable to store the current file path
 let currentFilePath = "";
@@ -108,7 +117,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
           <div class="settings-item">
             <div class="label-with-value">
               <label for="chunk-duration"><b>Durée en minutes de découpage du fichier audio</b></label>
-              <div class="slider-value" id="chunk-duration-value">${CHUNKDURATION}</div>
+              <div class="slider-value" id="chunk-duration-value">${storedChunkDuration}</div>
             </div>
             <div class="slider-container">
               <input
@@ -116,7 +125,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
                 id="chunk-duration"
                 min="2"
                 max="12"
-                value="${CHUNKDURATION}"
+                value="${storedChunkDuration}"
                 step="1"
                 class="slider"
                 list="chunk-duration-ticks"
@@ -148,7 +157,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
                 ${sortedLanguageCodes
                   .map(
                     ([code, name]) =>
-                      `<option value="${code}" ${code === "fr" ? "selected" : ""}>${name}</option>`,
+                      `<option value="${code}" ${code === storedLanguage ? "selected" : ""}>${name}</option>`,
                   )
                   .join("")}
               </select>
@@ -165,7 +174,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
                 type="checkbox"
                 id="no-proxy"
                 class="checkbox-input"
-              >
+                ${storedNoProxy ? "checked" : ""}>
               <span class="checkbox-text">Ne pas utiliser le proxy du système</span>
             </label>
             <div class="checkbox-info">
@@ -827,22 +836,25 @@ let transcriptionFiles: string[] = [];
 let lastSessionName = "";
 
 // Function to handle slider change
-function handleChunkDurationChange() {
+async function handleChunkDurationChange() {
   chunkDuration = parseInt(chunkDurationSlider.value);
   chunkDurationValue.textContent = chunkDurationSlider.value;
+  await store.set('chunk_duration', chunkDuration);
 }
 
 // Function to handle language selection change
-function handleLanguageChange() {
+async function handleLanguageChange() {
   transcriptionLanguage = languageSelect.value;
+  await store.set('language', transcriptionLanguage);
   console.log(
     `Transcription language set to: ${transcriptionLanguage} (${languageCodes[transcriptionLanguage as keyof typeof languageCodes]})`,
   );
 }
 
 // Function to handle checkbox change
-function handleProxyChange() {
+async function handleProxyChange() {
   useSystemProxy = !noProxyCheckbox.checked;
+  await store.set('no_proxy', !useSystemProxy);
   console.log(`Use system proxy: ${useSystemProxy}`);
 }
 

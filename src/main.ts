@@ -17,24 +17,23 @@ import { open as openExternal } from "@tauri-apps/plugin-shell";
 import { exit, relaunch } from "@tauri-apps/plugin-process";
 import { load } from '@tauri-apps/plugin-store';
 
-
 // Version number
 const VERSION = "0.5.2";
 
 // Default chunk duration (in minutes)
 const CHUNKDURATION = 10;
-// Stored values
-const store = await load('store.json');
-let storedChunkDuration = await store.get<number>('chunk_duration') || CHUNKDURATION;
-let storedLanguage = await store.get<string>('language') || "fr";
-let storedNoProxy = await store.get<boolean>('no_proxy') || false
+
+// Global variables for settings with defaults that will be updated by loadSettings()
+let store;
+let storedChunkDuration = CHUNKDURATION;
+let storedLanguage = "fr";
+let storedNoProxy = false;
 
 // Global variable to store the current file path
 let currentFilePath = "";
 
 // Create a sorted list of language codes for the dropdown
 const sortedLanguageCodes = (() => {
-  // Preferred languages to appear at the top
   const preferredLanguages = [
     "fr",
     "en",
@@ -51,15 +50,12 @@ const sortedLanguageCodes = (() => {
     "sk",
   ];
 
-  // Create a map of all languages
   const allLanguages = Object.entries(languageCodes);
 
-  // Sort the remaining languages alphabetically by name
   const remainingLanguages = allLanguages
     .filter(([code]) => !preferredLanguages.includes(code))
     .sort((a, b) => a[1].localeCompare(b[1], "fr"));
 
-  // Combine preferred languages in order with the alphabetically sorted remaining languages
   return [
     ...preferredLanguages.map((code) => [
       code,
@@ -68,6 +64,43 @@ const sortedLanguageCodes = (() => {
     ...remainingLanguages,
   ];
 })();
+
+// Initialize the app with settings from store
+async function initializeApp() {
+  try {
+    store = await load('store.json');
+    storedChunkDuration = await store.get<number>('chunk_duration') || CHUNKDURATION;
+    storedLanguage = await store.get<string>('language') || "fr";
+    storedNoProxy = await store.get<boolean>('no_proxy') || false;
+    
+    updateUIWithStoredSettings();
+    await invoke("download_api_key");
+    console.log("Settings loaded successfully");
+  } catch (error) {
+    console.error("Error loading settings:", error);
+  }
+}
+
+// Update UI elements with stored settings
+function updateUIWithStoredSettings() {
+  const chunkDurationSlider = document.getElementById("chunk-duration") as HTMLInputElement;
+  const chunkDurationValue = document.getElementById("chunk-duration-value") as HTMLDivElement;
+  
+  if (chunkDurationSlider && chunkDurationValue) {
+    chunkDurationSlider.value = storedChunkDuration.toString();
+    chunkDurationValue.textContent = storedChunkDuration.toString();
+  }
+  
+  const languageSelect = document.getElementById("transcription-language") as HTMLSelectElement;
+  if (languageSelect) {
+    languageSelect.value = storedLanguage;
+  }
+  
+  const noProxyCheckbox = document.getElementById("no-proxy") as HTMLInputElement;
+  if (noProxyCheckbox) {
+    noProxyCheckbox.checked = storedNoProxy;
+  }
+}
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div>
@@ -117,7 +150,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
           <div class="settings-item">
             <div class="label-with-value">
               <label for="chunk-duration"><b>Durée en minutes de découpage du fichier audio</b></label>
-              <div class="slider-value" id="chunk-duration-value">${storedChunkDuration}</div>
+              <div class="slider-value" id="chunk-duration-value">${CHUNKDURATION}</div>
             </div>
             <div class="slider-container">
               <input
@@ -125,7 +158,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
                 id="chunk-duration"
                 min="2"
                 max="12"
-                value="${storedChunkDuration}"
+                value="${CHUNKDURATION}"
                 step="1"
                 class="slider"
                 list="chunk-duration-ticks"
@@ -157,7 +190,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
                 ${sortedLanguageCodes
                   .map(
                     ([code, name]) =>
-                      `<option value="${code}" ${code === storedLanguage ? "selected" : ""}>${name}</option>`,
+                      `<option value="${code}">${name}</option>`,
                   )
                   .join("")}
               </select>
@@ -173,8 +206,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
               <input
                 type="checkbox"
                 id="no-proxy"
-                class="checkbox-input"
-                ${storedNoProxy ? "checked" : ""}>
+                class="checkbox-input">
               <span class="checkbox-text">Ne pas utiliser le proxy du système</span>
             </label>
             <div class="checkbox-info">
@@ -286,7 +318,6 @@ function updateTimerDisplay() {
 
 // Validate session name input
 function validateSessionName(value: string): boolean {
-  // Must be 4-20 characters, alphanumeric plus underscore and minus, no spaces or other special chars
   const regex = /^[a-zA-Z0-9_-]{4,20}$/;
   return regex.test(value);
 }
@@ -295,11 +326,8 @@ function validateSessionName(value: string): boolean {
 function logMessage(message: string) {
   let logMessageDiv = document.getElementById("log-message") as HTMLDivElement;
   let logMessageContent = logMessageDiv.innerHTML;
-  // Add the new message to the existing content
   logMessageContent += `<p>${message}</p>`;
-  // Update the log message div with the new content
   logMessageDiv.innerHTML = logMessageContent;
-  // Scroll to the bottom of the log message div
   logMessageDiv.scrollTop = logMessageDiv.scrollHeight;
   console.log(message);
 }
@@ -350,18 +378,14 @@ function handleSubmitButtonClick() {
     "file-cancel-button",
   ) as HTMLButtonElement;
 
-  // Reset and start the timer when submitting
   resetTimer();
   startTimer();
 
-  // Disable file drop area and select button
   disableFileInputs();
 
-  // Hide submit button and show cancel button
   submitButton.hidden = true;
   cancelButton.hidden = false;
 
-  // Get the validated session name
   const sessionName = sessionNameInput.value;
 
   invoke<string[]>("split_file", {
@@ -370,7 +394,6 @@ function handleSubmitButtonClick() {
     chunk_duration: chunkDuration,
   })
     .then((response) => {
-      // The Rust response is an array of strings: the paths of the chunks
       let length = response.length;
       let msgResponse =
         "Découpage du fichier audio en " +
@@ -385,10 +408,8 @@ function handleSubmitButtonClick() {
       send_chunks(response, chunkDuration);
     })
     .catch((error) => {
-      // Handle any errors that occur during the invocation
       logMessage("<br>Erreur lors du découpage du fichier audio :<br>" + error);
-      stopTimer(); // Stop timer on error
-      // Reset UI on error
+      stopTimer();
       submitButton.hidden = false;
       cancelButton.hidden = true;
       enableFileInputs();
@@ -397,14 +418,13 @@ function handleSubmitButtonClick() {
 
 // Set up the submit button event handler just once during initialization
 document.addEventListener("DOMContentLoaded", () => {
+  initializeApp();
+
   const submitButton = document.getElementById(
     "file-submit-button",
   ) as HTMLButtonElement;
   submitButton.addEventListener("click", handleSubmitButtonClick);
 
-  // No dynamic positioning of reset tab - using fixed position in inline style
-
-  // Get the reset option elements
   const quitOption = document.querySelector(
     ".reset-option:nth-child(1)",
   ) as HTMLDivElement;
@@ -412,7 +432,6 @@ document.addEventListener("DOMContentLoaded", () => {
     ".reset-option:nth-child(2)",
   ) as HTMLDivElement;
 
-  // Add event listeners to the reset options
   if (quitOption) {
     quitOption.addEventListener("click", async () => {
       console.log("Quitting application...");
@@ -430,13 +449,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Simplified handleFile function
 function handleFile(filePath: string) {
-  // Reset timer when selecting a new file
   resetTimer();
 
-  // Store the current file path in the global variable
   currentFilePath = filePath;
 
-  // Get the file name from the path
   const fileName = filePath.split("/").pop() || "";
   const fileExtension = fileName.split(".").pop() || "";
   const validExtensions = ["wav", "WAV", "mp3", "MP3"];
@@ -444,53 +460,41 @@ function handleFile(filePath: string) {
     "file-submit-button",
   ) as HTMLButtonElement;
 
-  // Hide the submit button by default
   submitButton.hidden = true;
   let msg = "";
 
-  // Check if the file extension is valid
   if (!validExtensions.includes(fileExtension)) {
     msg =
       "<b>Type de fichier non accepté.<p>Sélectionnez svp un fichier audio<br> avec l'extension .mp3 ou .wav</b>";
   } else {
     msg = `<p>Fichier sélectionné :<br><b> ${fileName}</b></p>`;
-    // Simply show the button - the event listener is already attached
     submitButton.hidden = false;
   }
   filePathDisplay.innerHTML = msg;
 }
 
-// Global variable to track if processing should continue
 let isCancelled = false;
 
-// Add event listener for the cancel button
 document
   .getElementById("file-cancel-button")
   ?.addEventListener("click", async () => {
-    // Show confirmation dialog
     if (await showConfirmationDialog()) {
-      // Set the cancellation flag
       isCancelled = true;
 
       logMessage("Annulation en cours... Arrêt des transcriptions.");
 
-      // Call terminate to clean up temporary files
       terminate(0);
     }
   });
 
-// Function to show a confirmation dialog
 async function showConfirmationDialog(): Promise<boolean> {
   return new Promise((resolve) => {
-    // Create dialog overlay
     const overlay = document.createElement("div");
     overlay.className = "dialog-overlay";
 
-    // Create dialog box
     const dialog = document.createElement("div");
     dialog.className = "dialog-box";
 
-    // Add dialog content
     dialog.innerHTML = `
       <p>Confirmer l'annulation de la transcription OUI/NON ?</p>
       <div class="dialog-buttons">
@@ -499,17 +503,14 @@ async function showConfirmationDialog(): Promise<boolean> {
       </div>
     `;
 
-    // Add dialog to overlay and overlay to body
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
 
-    // Focus the "NON" button (default option)
     setTimeout(() => {
       const noButton = document.getElementById("dialog-no");
       if (noButton) noButton.focus();
     }, 0);
 
-    // Add event listeners for buttons
     const yesButton = document.getElementById("dialog-yes");
     const noButton = document.getElementById("dialog-no");
 
@@ -526,7 +527,6 @@ async function showConfirmationDialog(): Promise<boolean> {
         resolve(false);
       });
 
-      // Set NON as default option with Enter key
       noButton.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           document.body.removeChild(overlay);
@@ -535,7 +535,6 @@ async function showConfirmationDialog(): Promise<boolean> {
       });
     }
 
-    // Close dialog on Escape key
     document.addEventListener("keydown", function escHandler(e) {
       if (e.key === "Escape") {
         document.body.removeChild(overlay);
@@ -547,11 +546,9 @@ async function showConfirmationDialog(): Promise<boolean> {
 }
 
 function send_chunks(chunks: string[], chunkDuration: number) {
-  // Reset cancellation flag when starting new processing
   isCancelled = false;
 
   let length = chunks.length;
-  // Il faut 1' pour traiter 10 Mo ou 10 minutes d'audio
   let duration = length * chunkDuration * 0.1;
   let minutes = Math.floor(duration);
   let seconds = Math.round((duration - minutes) * 60);
@@ -566,25 +563,19 @@ function send_chunks(chunks: string[], chunkDuration: number) {
       '"</b><br>Merci de patienter...<br><br>',
   );
 
-  // Process chunks sequentially with their respective delays
   processChunksSequentially(chunks, 0, 0);
 }
 
-// Process chunks one at a time
-// This function will be called recursively
-// to process each chunk sequentially
 async function processChunksSequentially(
   chunks: string[],
   index: number,
   errors: number,
 ) {
-  // Check for cancellation immediately
   if (isCancelled) {
     logMessage("Transcription annulée par l'utilisateur.");
     return;
   }
 
-  // Base case: all chunks processed
   if (index >= chunks.length) {
     terminate(errors);
     return;
@@ -598,7 +589,6 @@ async function processChunksSequentially(
     ((index + 1) * chunkDuration).toString() +
     " minutes";
 
-  // response is the formatted transcription file path
   await invoke<string>("send_chunk", {
     path,
     use_system_proxy: useSystemProxy,
@@ -606,7 +596,6 @@ async function processChunksSequentially(
     label: label,
   })
     .then((response) => {
-      // Check for cancellation again after processing
       if (isCancelled) {
         logMessage("Transcription annulée par l'utilisateur.");
         return;
@@ -615,17 +604,14 @@ async function processChunksSequentially(
       const msg = `fichier ${n} transcrit : ${response}`;
       addTranscriptionFile(response);
       logMessage(msg);
-      // Process the next chunk
       processChunksSequentially(chunks, index + 1, errors);
     })
     .catch((error) => {
-      // Check for cancellation on error too
       if (isCancelled) {
         logMessage("Transcription annulée par l'utilisateur.");
         return;
       }
       logMessage(`Erreur pour le fichier ${index + 1}: ${error}`);
-      // Process the next chunk, but increment the error count
       processChunksSequentially(chunks, index + 1, errors + 1);
     });
 }
@@ -638,7 +624,6 @@ function terminate(errors: number) {
   msg += ".";
   logMessage(msg);
 
-  // Terminate the Tauri process
   let submitButton = document.getElementById(
     "file-submit-button",
   ) as HTMLButtonElement;
@@ -656,24 +641,19 @@ function terminate(errors: number) {
   invoke<string>("terminate_transcription", { cancelled: isCancelled })
     .then((response) => {
       logMessage(response);
-      // Hide cancel button and show submit button
       cancelButton.hidden = true;
       submitButton.hidden = false;
       stopTimer();
       enableFileInputs();
 
-      // Show fusion button only if transcription was successful and not cancelled
-      // and we have at least 2 transcription files
       if (!isCancelled && transcriptionFiles.length >= 2) {
         fusionButton.hidden = false;
       } else {
         fusionButton.hidden = true;
       }
 
-      // Reset the current file path when transcription is over
       currentFilePath = "";
 
-      // Don't reset transcription files yet - they're needed for the fusion
       if (isCancelled) {
         resetTranscriptionFiles();
       }
@@ -682,7 +662,6 @@ function terminate(errors: number) {
       logMessage(
         "Erreur lors de la suppression des fichiers temporaires : " + error,
       );
-      // Hide cancel button and show submit button
       cancelButton.hidden = true;
       submitButton.hidden = false;
       stopTimer();
@@ -690,13 +669,10 @@ function terminate(errors: number) {
       fusionButton.hidden = true;
       resetTranscriptionFiles();
 
-      // Reset the current file path on error too
       currentFilePath = "";
     });
 }
 
-// Drag and drop events HTML5
-// changement de la couleur de la zone de drop sur entrée et sortie
 fileDropArea.addEventListener("dragenter", (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -709,24 +685,19 @@ fileDropArea.addEventListener("dragleave", (event) => {
   fileDropArea.classList.remove("drag-over");
 });
 
-// Traitement Tauri du drop d'un fichier
-// Tauri onDragDropEvent
 let _unlisten: () => void;
 
 async function setupDragDropListener() {
   _unlisten = await getCurrentWebview().onDragDropEvent((event) => {
     if (event.payload.type === "drop") {
-      // Handle the first dropped file
       const filePath = event.payload.paths[0];
       handleFile(filePath);
     }
   });
 }
 
-// Call the setup function immediately
 setupDragDropListener();
 
-// Add a cleanup function that can be called when needed
 function cleanup() {
   if (_unlisten) {
     _unlisten();
@@ -734,15 +705,9 @@ function cleanup() {
   }
 }
 
-// Add event listener for beforeunload to clean up when the window is closed
 window.addEventListener("beforeunload", cleanup);
 
-// Traitement Tauri d'ouverture du selecteur de fichiers pour obtenir le path complet
-// Tauri file selector dialog
-// File button click event
-// https://tauri.app/reference/javascript/dialog/
 fileSelectButton.addEventListener("click", async (_event) => {
-  // Open a dialog
   const file = await open({
     multiple: false,
     directory: false,
@@ -755,59 +720,45 @@ fileSelectButton.addEventListener("click", async (_event) => {
     ],
   });
   if (file) {
-    // Handle the selected file
     handleFile(file as string);
   }
 });
 
-/// Traitement par Tauri de la concaténation des fichiers de transcription
 async function concatFiles(files: string[], sessionName: string) {
   try {
-    // Show a loading message
     logMessage("Fusion des transcriptions en cours...");
 
-    // Disable the fusion button during processing
     fusionButton.disabled = true;
 
-    // Invoke the Rust function to concatenate the files
     const outputFile = await invoke<string>("concat_transcription_files", {
       transcription_chunks: files,
       output_file: `${sessionName}_entier.txt`,
     });
 
-    // Show success message
     logMessage(`Fusion terminée. Fichier complet créé : ${outputFile}`);
 
-    // Hide the fusion button after successful operation
     fusionButton.hidden = true;
 
-    // Now we can reset the transcription files
     resetTranscriptionFiles();
   } catch (error) {
-    // Show error message
     logMessage(`Erreur lors de la fusion des transcriptions : ${error}`);
 
-    // Re-enable the button to allow retry
     fusionButton.disabled = false;
   }
 }
 
-// Traitement par Tauri du reset de l'application
 async function resetApp() {
   await relaunch();
 }
 
-// Traitement par Tauri de la fermeture de l'application
 async function quitApp() {
   await exit(0);
 }
 
-// Add event listener for the fusion button
 fusionButton.addEventListener("click", () => {
   concatFiles(transcriptionFiles, lastSessionName);
 });
 
-// Settings panel functionality
 const settingsPanel = document.getElementById(
   "settings-panel",
 ) as HTMLDivElement;
@@ -823,117 +774,96 @@ const chunkDurationValue = document.getElementById(
 ) as HTMLDivElement;
 const noProxyCheckbox = document.getElementById("no-proxy") as HTMLInputElement;
 
-// Reset panel elements
 const resetPanel = document.getElementById("reset-panel") as HTMLDivElement;
 const resetTab = document.getElementById("reset-tab") as HTMLDivElement;
 const closeReset = document.getElementById("close-reset") as HTMLButtonElement;
 
-// Settings global variables
 let useSystemProxy = true;
 let chunkDuration = parseInt(chunkDurationSlider.value);
-let transcriptionLanguage = languageSelect.value; // Default: 'fr' (Français)
+let transcriptionLanguage = languageSelect.value;
 let transcriptionFiles: string[] = [];
 let lastSessionName = "";
 
-// Function to handle slider change
 async function handleChunkDurationChange() {
   chunkDuration = parseInt(chunkDurationSlider.value);
   chunkDurationValue.textContent = chunkDurationSlider.value;
-  await store.set('chunk_duration', chunkDuration);
+  if (store) {
+    await store.set('chunk_duration', chunkDuration);
+  }
 }
 
-// Function to handle language selection change
 async function handleLanguageChange() {
   transcriptionLanguage = languageSelect.value;
-  await store.set('language', transcriptionLanguage);
+  if (store) {
+    await store.set('language', transcriptionLanguage);
+  }
   console.log(
     `Transcription language set to: ${transcriptionLanguage} (${languageCodes[transcriptionLanguage as keyof typeof languageCodes]})`,
   );
 }
 
-// Function to handle checkbox change
 async function handleProxyChange() {
   useSystemProxy = !noProxyCheckbox.checked;
-  await store.set('no_proxy', !useSystemProxy);
+  if (store) {
+    await store.set('no_proxy', !useSystemProxy);
+  }
   console.log(`Use system proxy: ${useSystemProxy}`);
 }
 
-// Function to open settings panel
 function openSettingsPanel() {
   settingsPanel.classList.add("open");
-  // Hide reset tab when settings panel is open
   resetTab.style.opacity = "0";
   resetTab.style.pointerEvents = "none";
-  // Tab will be hidden via CSS
 }
 
-// Function to close settings panel
 function closeSettingsPanel() {
   settingsPanel.classList.remove("open");
 
-  // Make tab visible again after transition completes
   setTimeout(() => {
-    // This ensures the tab is fully visible after the panel is hidden
     settingsTab.style.opacity = "1";
     settingsTab.style.pointerEvents = "auto";
-    // Make reset tab visible again
     resetTab.style.opacity = "1";
     resetTab.style.pointerEvents = "auto";
-  }, 300); // Match transition duration
+  }, 300);
 }
 
-// Function to open reset panel
 function openResetPanel() {
   resetPanel.classList.add("open");
-  // Hide settings tab when reset panel is open
   settingsTab.style.opacity = "0";
   settingsTab.style.pointerEvents = "none";
 }
 
-// Function to close reset panel
 function closeResetPanel() {
   resetPanel.classList.remove("open");
 
-  // Make tabs visible again after transition completes
   setTimeout(() => {
-    // Ensure both tabs are fully visible after the panel is hidden
     resetTab.style.opacity = "1";
     resetTab.style.pointerEvents = "auto";
     settingsTab.style.opacity = "1";
     settingsTab.style.pointerEvents = "auto";
-  }, 300); // Match transition duration
+  }, 300);
 }
 
-// Function to reser the transcription files array
 function resetTranscriptionFiles() {
   transcriptionFiles = [];
 }
 
-// Function to add a transcription file to the array
 function addTranscriptionFile(filePath: string) {
   transcriptionFiles.push(filePath);
 }
 
-// Event listeners for settings panel
 settingsTab.addEventListener("click", openSettingsPanel);
 closeSettings.addEventListener("click", closeSettingsPanel);
 chunkDurationSlider.addEventListener("input", handleChunkDurationChange);
 languageSelect.addEventListener("change", handleLanguageChange);
 noProxyCheckbox.addEventListener("change", handleProxyChange);
 
-// Event listeners for reset panel
 resetTab.addEventListener("click", openResetPanel);
 closeReset.addEventListener("click", closeResetPanel);
 
-// Add event listener for API status link to open in system browser
 document
   .getElementById("api-status-link")
   ?.addEventListener("click", async (e) => {
     e.preventDefault();
     await openExternal("https://albert.api.etalab.gouv.fr/status/api");
   });
-
-// Chargement de la clé d'API au démarrage
-window.addEventListener("load", async (_) => {
-  await invoke("download_api_key");
-});
